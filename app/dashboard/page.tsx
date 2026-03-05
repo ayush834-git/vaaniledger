@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { MessageCircle, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 
 import { ChatPanel } from "@/components/chat/ChatPanel";
-import { ExpensePieChart } from "@/components/charts/ExpensePieChart";
+import { TopCategoriesChart } from "@/components/charts/TopCategoriesChart";
 import { IncomeExpenseBarChart } from "@/components/charts/IncomeExpenseBarChart";
 import { ProfitLineChart } from "@/components/charts/ProfitLineChart";
 import { Card } from "@/components/ui/Card";
@@ -78,9 +78,18 @@ export default function DashboardPage() {
     { id: "profit", label: t("dashboard.netProfit"), amount: todaySummary.netProfit, borderColor: "border-l-accent", textColor: "text-accent", icon: DollarSign, iconColor: "text-accent", gradColor: "#FF5500" },
   ];
 
-  const expensePieData = useMemo(() => {
-    const totals = transactions.filter((i) => i.type === "expense").reduce<Record<string, number>>((acc, i) => { acc[i.category] = (acc[i.category] ?? 0) + i.amount; return acc; }, {});
-    return Object.entries(totals).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 6);
+  /* Top categories — includes BOTH income and expense */
+  const topCategoriesData = useMemo(() => {
+    const totals: Record<string, { value: number; type: "income" | "expense" }> = {};
+    for (const tx of transactions) {
+      const key = `${tx.category}__${tx.type}`;
+      if (!totals[key]) totals[key] = { value: 0, type: tx.type };
+      totals[key].value += tx.amount;
+    }
+    return Object.entries(totals)
+      .map(([key, data]) => ({ name: key.split("__")[0], value: data.value, type: data.type }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 6);
   }, [transactions]);
 
   const incomeExpenseByDay = useMemo(() => buildLast7DaysIncomeExpense(transactions), [transactions]);
@@ -120,7 +129,7 @@ export default function DashboardPage() {
       </div>
 
       <motion.div variants={itemVariants} className="grid gap-4 lg:grid-cols-3">
-        <ExpensePieChart data={expensePieData} />
+        <TopCategoriesChart data={topCategoriesData} />
         <IncomeExpenseBarChart data={incomeExpenseByDay} />
         <ProfitLineChart data={profitTrend} />
       </motion.div>

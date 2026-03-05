@@ -21,6 +21,7 @@
     "todayExpense": "Today Expense",
     "netProfit": "Net Profit",
     "expenseCategories": "Expense Categories",
+    "topCategories": "Top Categories",
     "incomeVsExpense": "Income vs Expense",
     "profitTrend": "Profit Trend",
     "latestSynced": "Latest transaction synced",
@@ -91,6 +92,7 @@
     "online": "AI Online",
     "emptyTitle": "Ask about your finances",
     "emptyHint": "e.g. \"What did I spend most on?\"",
-    "inputPlaceholder": "Ask about spending, profit, trends..."
+    "inputPlaceholder": "Ask about spending, profit, trends...",
+    "error": "Unable to get a response. Please try again."
   }
 }

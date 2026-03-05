@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { X, Send } from "lucide-react";
@@ -9,13 +9,21 @@ type ChatMessage = { role: "user" | "assistant"; text: string };
 
 interface ChatPanelProps { onClose: () => void }
 
+const resolveSupportedLanguage = (input: string) => {
+  const base = input.split("-")[0];
+  if (base === "hi" || base === "te" || base === "ta") return base;
+  return "en";
+};
+
 export const ChatPanel = ({ onClose }: ChatPanelProps) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const language = useMemo(() => resolveSupportedLanguage(i18n.language), [i18n.language]);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, isSending]);
 
@@ -28,12 +36,16 @@ export const ChatPanel = ({ onClose }: ChatPanelProps) => {
     setIsSending(true);
     setErrorMessage(null);
     try {
-      const response = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: value }) });
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: value, language }),
+      });
       const payload = (await response.json()) as { ok?: boolean; reply?: string; error?: { message?: string } };
-      if (!response.ok || !payload.ok || !payload.reply) throw new Error(payload.error?.message ?? "Unable to fetch chat response.");
+      if (!response.ok || !payload.ok || !payload.reply) throw new Error(payload.error?.message ?? t("chat.error"));
       setMessages((prev) => [...prev, { role: "assistant", text: payload.reply ?? "" }]);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to fetch chat response.");
+      setErrorMessage(error instanceof Error ? error.message : t("chat.error"));
     } finally { setIsSending(false); }
   };
 
