@@ -23,7 +23,7 @@ class AIParseError extends Error {
     this.name = "AIParseError";
   }
 }
-const GEMINI_MODEL = "gemini-1.5-flash-latest";
+const GEMINI_MODEL = "gemini-2.5-flash";
 
 const GEMINI_ENDPOINT =
   `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
@@ -56,6 +56,20 @@ const getGeminiApiKey = (): string => {
     throw new AIParseError("GEMINI_API_KEY is missing.", "AI_CONFIG_ERROR");
   }
   return apiKey;
+};
+
+const getGeminiErrorMessage = (rawBody: string): string => {
+  try {
+    const parsed = JSON.parse(rawBody) as { error?: { message?: string } };
+    if (parsed.error?.message) {
+      return parsed.error.message;
+    }
+  } catch {
+    // Fall through and return raw body.
+  }
+
+  const trimmed = rawBody.trim();
+  return trimmed.length > 0 ? trimmed : "Unknown Gemini API error";
 };
 
 const getTextFromGeminiResponse = (payload: unknown): string => {
@@ -103,15 +117,25 @@ const generateJsonFromGemini = async (prompt: string): Promise<unknown> => {
           parts: [{ text: prompt }],
         },
       ],
-      generationConfig: {
-        temperature: 0.1,
-        responseMimeType: "application/json",
-      },
     }),
   });
 
   if (!response.ok) {
-    throw new AIParseError(`Gemini API request failed with status ${response.status}.`, "AI_REQUEST_FAILED");
+    const errorBody = await response.text();
+    const errorMessage = getGeminiErrorMessage(errorBody);
+
+    console.error("Gemini API request failed", {
+      status: response.status,
+      statusText: response.statusText,
+      model: GEMINI_MODEL,
+      errorMessage,
+      errorBody,
+    });
+
+    throw new AIParseError(
+      `Gemini API request failed with status ${response.status}: ${errorMessage}`,
+      "AI_REQUEST_FAILED",
+    );
   }
 
   const responseJson = await response.json();
