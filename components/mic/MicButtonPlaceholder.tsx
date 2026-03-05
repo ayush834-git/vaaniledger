@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
+import { Mic, MicOff, Loader2 } from "lucide-react";
 
 import type { ParsedTransactionDraft, SupportedLanguage } from "@/lib/types/domain";
 import { refreshStoredTransactionsFromApi } from "@/lib/utils/clientTransactions";
@@ -302,40 +303,103 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
   };
 
   return (
-    <div className="flex flex-col items-center gap-3">
-      <motion.button
-        animate={{ scale: isRecording ? [1, 1.08, 1] : [1, 1.04, 1] }}
-        transition={{ duration: 1.8, repeat: Infinity }}
-        className="relative inline-flex h-28 w-28 items-center justify-center rounded-full border border-accent/70 bg-accent text-bg shadow-soft disabled:cursor-not-allowed disabled:opacity-70"
-        disabled={!isSupported || isProcessing}
-        onClick={onMicClick}
-        type="button"
-      >
-        <span className="text-4xl">{isProcessing ? "..." : "Mic"}</span>
-        <motion.span
-          animate={{ opacity: [0.5, 0], scale: [1, 1.5] }}
-          transition={{ duration: 2, repeat: Infinity }}
-          className="absolute inset-0 rounded-full border border-accent"
-        />
-      </motion.button>
+    <div className="flex flex-col items-center gap-4">
+      <div className="relative">
+        {/* Pulsing rings when recording */}
+        <AnimatePresence>
+          {isRecording && [0, 1, 2].map((i) => (
+            <motion.div
+              key={i}
+              className="absolute inset-0 rounded-full border border-red-400/50"
+              initial={{ scale: 1, opacity: 0.8 }}
+              animate={{ scale: 2.5 + i * 0.4, opacity: 0 }}
+              exit={{ scale: 1, opacity: 0 }}
+              transition={{ duration: 1.5, delay: i * 0.4, repeat: Infinity, ease: "easeOut" }}
+            />
+          ))}
+        </AnimatePresence>
 
-      {!isSupported ? <p className="text-sm text-expense">Speech recognition is not supported in this browser.</p> : null}
-      {isRecording ? <p className="text-sm font-medium text-accent">Listening...</p> : null}
-      {isProcessing ? (
-        <div className="flex items-center gap-2 text-sm text-textSecondary">
-          <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-textSecondary border-t-transparent" />
-          Processing...
-        </div>
-      ) : null}
+        {/* Main button */}
+        <motion.button
+          onClick={onMicClick}
+          disabled={!isSupported || isProcessing}
+          animate={
+            isRecording
+              ? { scale: [1, 1.05, 1], backgroundColor: "#EF4444" }
+              : isProcessing
+              ? { scale: 1, backgroundColor: "#F59E0B" }
+              : { scale: [1, 1.04, 1], backgroundColor: "#F59E0B" }
+          }
+          transition={
+            isRecording || (!isProcessing)
+              ? { duration: 2, repeat: Infinity, ease: "easeInOut" }
+              : {}
+          }
+          className="relative z-10 flex h-20 w-20 items-center justify-center rounded-full shadow-[0_0_30px_rgba(245,158,11,0.3)] disabled:cursor-not-allowed disabled:opacity-70"
+          type="button"
+        >
+          {isProcessing ? (
+            <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+              <Loader2 className="h-8 w-8 text-black" />
+            </motion.div>
+          ) : isRecording ? (
+            <MicOff className="h-8 w-8 text-white" />
+          ) : (
+            <Mic className="h-8 w-8 text-black" />
+          )}
+        </motion.button>
+      </div>
+
+      {/* Waveform bars during recording */}
+      <AnimatePresence>
+        {isRecording && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="flex items-center gap-1"
+          >
+            {[0.4, 0.8, 1.2, 0.9, 0.5, 1.0, 0.6].map((h, i) => (
+              <motion.div
+                key={i}
+                className="w-1.5 rounded-full bg-red-400"
+                animate={{ scaleY: [h, h * 0.4, h * 1.3, h] }}
+                transition={{ duration: 0.6, delay: i * 0.08, repeat: Infinity, ease: "easeInOut" }}
+                style={{ height: 24, transformOrigin: "center" }}
+              />
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <p className="text-xs text-slate-500">
+        {!isSupported
+          ? "Speech recognition is not supported"
+          : isRecording
+          ? "Listening… tap to stop"
+          : isProcessing
+          ? "Processing…"
+          : t("mic.start")}
+      </p>
+
       {transcript ? (
-        <p className="max-w-md rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-textPrimary">
+        <motion.p
+          initial={{ opacity: 0, y: 5 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-md rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm text-textPrimary"
+        >
           {transcript}
-        </p>
+        </motion.p>
       ) : null}
-      {successMessage ? <p className="text-sm text-income">{successMessage}</p> : null}
-      {errorMessage ? <p className="text-sm text-expense">{errorMessage}</p> : null}
-      {!isRecording && !isProcessing && isSupported ? (
-        <p className="text-sm text-textSecondary">{t("mic.start")} / {t("mic.stop")}</p>
+      {successMessage ? (
+        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-income">
+          {successMessage}
+        </motion.p>
+      ) : null}
+      {errorMessage ? (
+        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-expense">
+          {errorMessage}
+        </motion.p>
       ) : null}
     </div>
   );

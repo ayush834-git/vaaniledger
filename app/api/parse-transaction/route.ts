@@ -192,11 +192,14 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof AIParseError) {
       const messageByCode: Record<string, string> = {
+        AI_CONFIG_ERROR: "AI service is not configured. Please contact the administrator.",
         AI_RATE_LIMITED: "AI is busy right now. Please try again in a few seconds.",
         INVALID_AI_RESPONSE: "Could not understand the transaction.",
         AI_VALIDATION_ERROR: "Could not understand the transaction.",
       };
-      const status = error.code === "AI_RATE_LIMITED" ? 429 : 422;
+      const status = error.code === "AI_CONFIG_ERROR" ? 503
+                   : error.code === "AI_RATE_LIMITED" ? 429
+                   : 422;
       const message = messageByCode[error.code] ?? error.message;
       return NextResponse.json(parseErrorResponse(message, error.code), { status });
     }

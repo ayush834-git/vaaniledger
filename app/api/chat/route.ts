@@ -61,7 +61,10 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     if (error instanceof AIParseError) {
-      return NextResponse.json(buildError(error.code, error.message), { status: 422 });
+      const status = error.code === "AI_CONFIG_ERROR" ? 503
+                   : error.code === "AI_RATE_LIMITED" ? 429
+                   : 422;
+      return NextResponse.json(buildError(error.code, error.message), { status });
     }
 
     if (error instanceof z.ZodError) {

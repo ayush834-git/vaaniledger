@@ -5,7 +5,7 @@ export type AIProvider = "groq" | "gemini";
 const GEMINI_MODEL = "gemini-2.5-flash";
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
-const GROQ_MODEL = "llama3-70b-8192";
+const GROQ_MODEL = "llama-3.3-70b-versatile";
 const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 
 class ProviderRequestError extends Error {
@@ -225,6 +225,19 @@ const resolveConfiguredProvider = (): AIProvider => {
 export async function generateJsonFromAI(prompt: string): Promise<unknown> {
   const provider = resolveConfiguredProvider();
   console.log("AI Provider:", process.env.AI_PROVIDER);
+
+  if (provider === "groq" && !process.env.GROQ_API_KEY) {
+    throw new ProviderRequestError(
+      "AI service is not configured. Please add GROQ_API_KEY to your environment.",
+      "AI_CONFIG_ERROR"
+    );
+  }
+  if (provider === "gemini" && !process.env.GEMINI_API_KEY) {
+    throw new ProviderRequestError(
+      "AI service is not configured. Please add GEMINI_API_KEY to your environment.",
+      "AI_CONFIG_ERROR"
+    );
+  }
 
   try {
     if (provider === "groq") {
