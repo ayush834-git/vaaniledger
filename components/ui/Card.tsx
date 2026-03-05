@@ -11,10 +11,10 @@ type CardProps = HTMLMotionProps<"div"> & {
 export const Card = ({ className, children, ...props }: CardProps) => {
   return (
     <motion.div
-      whileHover={{ y: -2, boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
+      whileHover={{ y: -2, boxShadow: "0 8px 32px rgba(255,85,0,0.10)" }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
       className={cn(
-        "rounded-2xl border border-white/[0.08] bg-[#0D1728]/80 p-5 backdrop-blur-sm",
+        "rounded-2xl border border-accent/[0.12] bg-white p-5 shadow-soft",
         className,
       )}
       {...props}

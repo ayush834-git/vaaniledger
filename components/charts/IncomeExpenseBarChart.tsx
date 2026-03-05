@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { useTranslation } from "react-i18next";
 
 import { Card } from "@/components/ui/Card";
 
@@ -14,6 +15,7 @@ interface IncomeExpenseBarChartProps {
 }
 
 export const IncomeExpenseBarChart = ({ data }: IncomeExpenseBarChartProps) => {
+  const { t } = useTranslation();
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -22,23 +24,23 @@ export const IncomeExpenseBarChart = ({ data }: IncomeExpenseBarChartProps) => {
 
   return (
     <Card>
-      <h3 className="mb-4 text-lg font-semibold">Income vs Expense</h3>
+      <h3 className="mb-4 text-lg font-semibold text-textPrimary">{t("dashboard.incomeVsExpense")}</h3>
       <div className="h-56">
         {isMounted ? (
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data}>
-              <XAxis stroke="#94A3B8" dataKey="day" />
-              <YAxis stroke="#94A3B8" />
+              <XAxis stroke="rgba(0,0,0,0.4)" dataKey="day" />
+              <YAxis stroke="rgba(0,0,0,0.4)" />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#131929",
-                  border: "1px solid rgba(255,255,255,0.1)",
+                  backgroundColor: "#FFFFFF",
+                  border: "1px solid rgba(255,85,0,0.12)",
                   borderRadius: "8px",
-                  color: "#F8FAFC",
+                  color: "#1A0A00",
                 }}
               />
-              <Bar dataKey="income" fill="#22C55E" radius={[6, 6, 0, 0]} />
-              <Bar dataKey="expense" fill="#EF4444" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="income" fill="#00A86B" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="expense" fill="#E8003D" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         ) : null}

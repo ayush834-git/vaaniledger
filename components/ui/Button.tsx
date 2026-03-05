@@ -16,8 +16,8 @@ export const Button = ({ className, variant = "primary", children, ...props }: B
       className={cn(
         "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50",
         variant === "primary"
-          ? "bg-amber-400 text-black font-semibold hover:bg-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.15)]"
-          : "border border-white/10 bg-transparent text-slate-400 hover:border-amber-400/30 hover:text-amber-400 hover:bg-white/[0.03]",
+          ? "bg-accent text-white font-semibold hover:bg-[#CC4400] shadow-glow"
+          : "border border-accent/12 bg-transparent text-textSecondary hover:border-accent/30 hover:text-accent hover:bg-accent/5",
         className,
       )}
       {...props}

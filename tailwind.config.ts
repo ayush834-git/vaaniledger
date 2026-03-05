@@ -9,13 +9,16 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        bg: "#0A0F1E",
-        surface: "#131929",
-        accent: "#F59E0B",
-        income: "#22C55E",
-        expense: "#EF4444",
-        textPrimary: "#F8FAFC",
-        textSecondary: "#94A3B8",
+        bg: "#FFFBF0",
+        surface: "#FFF5D6",
+        "surface-2": "#FFE8B0",
+        accent: "#FF5500",
+        secondary: "#D4006A",
+        income: "#00A86B",
+        expense: "#E8003D",
+        textPrimary: "#1A0A00",
+        textSecondary: "#6B4423",
+        border: "rgba(255, 85, 0, 0.12)",
       },
       fontFamily: {
         display: ["var(--font-display)", "serif"],
@@ -23,7 +26,8 @@ const config: Config = {
         mono: ["var(--font-mono)", "monospace"],
       },
       boxShadow: {
-        soft: "0 10px 30px rgba(0, 0, 0, 0.25)",
+        soft: "0 4px 24px rgba(255, 85, 0, 0.08)",
+        glow: "0 4px 16px rgba(255, 85, 0, 0.35)",
       },
       borderRadius: {
         xl: "1rem",

@@ -1,9 +1,12 @@
 :root {
-  --color-bg: #0a0f1e;
-  --color-surface: #131929;
-  --color-accent: #f59e0b;
-  --color-income: #22c55e;
-  --color-expense: #ef4444;
-  --color-text-primary: #f8fafc;
-  --color-text-secondary: #94a3b8;
+  --color-bg: #FFFBF0;
+  --color-surface: #FFF5D6;
+  --color-surface-2: #FFE8B0;
+  --color-accent: #FF5500;
+  --color-secondary: #D4006A;
+  --color-income: #00A86B;
+  --color-expense: #E8003D;
+  --color-text-primary: #1A0A00;
+  --color-text-secondary: #6B4423;
+  --color-border: rgba(255, 85, 0, 0.12);
 }

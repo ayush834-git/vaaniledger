@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { useTranslation } from "react-i18next";
 
 import { Card } from "@/components/ui/Card";
 
@@ -13,6 +14,7 @@ interface ProfitLineChartProps {
 }
 
 export const ProfitLineChart = ({ data }: ProfitLineChartProps) => {
+  const { t } = useTranslation();
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -21,22 +23,22 @@ export const ProfitLineChart = ({ data }: ProfitLineChartProps) => {
 
   return (
     <Card>
-      <h3 className="mb-4 text-lg font-semibold">Profit Trend</h3>
+      <h3 className="mb-4 text-lg font-semibold text-textPrimary">{t("dashboard.profitTrend")}</h3>
       <div className="h-56">
         {isMounted ? (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data}>
-              <XAxis stroke="#94A3B8" dataKey="day" />
-              <YAxis stroke="#94A3B8" />
+              <XAxis stroke="rgba(0,0,0,0.4)" dataKey="day" />
+              <YAxis stroke="rgba(0,0,0,0.4)" />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#131929",
-                  border: "1px solid rgba(255,255,255,0.1)",
+                  backgroundColor: "#FFFFFF",
+                  border: "1px solid rgba(255,85,0,0.12)",
                   borderRadius: "8px",
-                  color: "#F8FAFC",
+                  color: "#1A0A00",
                 }}
               />
-              <Line type="monotone" dataKey="value" stroke="#F59E0B" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="value" stroke="#FF5500" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         ) : null}

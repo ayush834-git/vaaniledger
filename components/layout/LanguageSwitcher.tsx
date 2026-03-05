@@ -3,14 +3,13 @@
 import { useTranslation } from "react-i18next";
 
 import { languageStorageKey, supportedLngs, type AppLanguage } from "@/lib/i18n/config";
-import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils/cn";
 
 const labels: Record<AppLanguage, string> = {
   en: "EN",
-  hi: "???",
-  te: "??",
-  ta: "?",
+  hi: "\u0939\u093f\u0902",
+  te: "\u0c24\u0c46",
+  ta: "\u0ba4\u0bae\u0bbf",
 };
 
 export const LanguageSwitcher = () => {
@@ -24,20 +23,21 @@ export const LanguageSwitcher = () => {
   };
 
   return (
-    <div className="inline-flex rounded-lg border border-white/10 bg-bg/70 p-1">
+    <div className="inline-flex rounded-lg border border-accent/12 bg-white p-1 shadow-sm">
       {supportedLngs.map((lang) => (
-        <Button
+        <button
           key={lang}
           className={cn(
-            "h-8 rounded-md border-none px-2 text-xs",
-            active === lang ? "bg-accent text-bg" : "bg-transparent text-textSecondary hover:text-textPrimary",
+            "h-8 rounded-md px-2.5 text-xs font-medium transition-all",
+            active === lang
+              ? "bg-accent text-white shadow-sm"
+              : "bg-transparent text-textSecondary hover:text-accent",
           )}
           onClick={() => onSwitch(lang)}
           type="button"
-          variant="ghost"
         >
           {labels[lang]}
-        </Button>
+        </button>
       ))}
     </div>
   );

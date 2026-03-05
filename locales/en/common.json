@@ -2,46 +2,95 @@
   "app": {
     "title": "VaaniLedger",
     "subtitle": "Voice-first AI financial assistant",
-    "recentTransactions": "Recent transactions"
+    "recentTransactions": "Recent Transactions",
+    "voiceFirst": "voice-first finance"
   },
   "nav": {
     "home": "Home",
     "dashboard": "Dashboard",
-    "ledger": "Ledger"
+    "ledger": "Ledger",
+    "signIn": "Sign In",
+    "logout": "Logout"
   },
   "dashboard": {
     "title": "Dashboard",
-    "summary": "Summary",
+    "summary": "Your financial overview at a glance",
     "insights": "Insights",
-    "chat": "Ask AI"
+    "chat": "Ask AI",
+    "todayIncome": "Today Income",
+    "todayExpense": "Today Expense",
+    "netProfit": "Net Profit",
+    "expenseCategories": "Expense Categories",
+    "incomeVsExpense": "Income vs Expense",
+    "profitTrend": "Profit Trend",
+    "latestSynced": "Latest transaction synced",
+    "totalTracked": "{{count}} total transactions tracked. Use the chat to ask about trends.",
+    "noTransactions": "Start adding transactions to see AI-powered insights here.",
+    "chatPrompt": "Ask about your spending patterns, profit trends, or get financial advice."
   },
   "ledger": {
     "title": "Ledger",
     "search": "Search transactions",
-    "empty": "No transactions yet"
+    "empty": "No transactions yet",
+    "exportCsv": "Export CSV",
+    "all": "All",
+    "income": "Income",
+    "expense": "Expense",
+    "transactionCount": "{{count}} transaction",
+    "transactionCount_plural": "{{count}} transactions"
   },
   "auth": {
     "title": "Sign in",
     "description": "Use email magic link",
     "email": "Email",
     "sendLink": "Send magic link",
-    "sent": "Magic link sent. Check your inbox."
+    "sent": "Magic link sent. Check your inbox.",
+    "sending": "Sending\u2026",
+    "noPassword": "We'll send a magic link to your email. No password needed."
   },
   "add": {
-    "transaction": "Add transaction"
+    "transaction": "Add Transaction"
   },
   "mic": {
-    "start": "Start recording",
-    "stop": "Stop recording"
+    "start": "Tap to speak",
+    "stop": "Tap to stop",
+    "listening": "Listening\u2026 tap to stop",
+    "processing": "Processing\u2026",
+    "notSupported": "Speech recognition is not supported",
+    "saved": "Saved!",
+    "confirmSave": "Processing complete. Confirm to save."
   },
   "home": {
+    "heroTitle": "Bol ke Hisaab",
+    "heroSubtitle": "Speak or type. Your finances, tracked instantly.",
     "placeholder": "Speak or type a transaction",
-    "textInputLabel": "Transaction input"
+    "textInputLabel": "Transaction input",
+    "example": "Example: spent 200 on groceries",
+    "noTransactions": "No transactions yet.",
+    "noTransactionsHint": "Speak or type to add your first one",
+    "confirm": "Confirm Transaction",
+    "amount": "Amount",
+    "type": "Type",
+    "category": "Category",
+    "description": "Description",
+    "confirmBtn": "Confirm",
+    "saving": "Saving\u2026",
+    "edit": "Edit",
+    "cancel": "Cancel"
   },
   "common": {
     "amount": "Amount",
     "category": "Category",
     "type": "Type",
-    "date": "Date"
+    "date": "Date",
+    "description": "Description",
+    "actions": "Actions"
+  },
+  "chat": {
+    "title": "Finance Assistant",
+    "online": "AI Online",
+    "emptyTitle": "Ask about your finances",
+    "emptyHint": "e.g. \"What did I spend most on?\"",
+    "inputPlaceholder": "Ask about spending, profit, trends..."
   }
 }

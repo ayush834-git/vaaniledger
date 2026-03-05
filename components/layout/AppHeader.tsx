@@ -24,12 +24,12 @@ export const AppHeader = () => {
       initial={{ y: -80, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ type: "spring", stiffness: 260, damping: 25 }}
-      className="sticky top-3 z-50 mx-auto max-w-7xl rounded-2xl border border-white/10 bg-[#0A0F1E]/80 px-6 py-3 shadow-[0_8px_32px_rgba(0,0,0,0.4)] backdrop-blur-xl"
+      className="sticky top-3 z-50 mx-auto max-w-7xl rounded-2xl border border-accent/12 bg-white px-6 py-3 shadow-soft"
     >
       {/* Live data pulse bar */}
       <div className="absolute top-0 left-0 h-[2px] w-full overflow-hidden rounded-t-2xl">
         <motion.div
-          className="h-full w-full bg-gradient-to-r from-transparent via-amber-400 to-transparent"
+          className="h-full w-full bg-gradient-to-r from-transparent via-accent to-transparent"
           animate={{ x: ["-100%", "100%"] }}
           transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
         />
@@ -38,12 +38,12 @@ export const AppHeader = () => {
       <div className="flex items-center justify-between gap-4">
         {/* Logo */}
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-400/10 border border-amber-400/30">
-            <span className="text-xs font-bold font-mono text-amber-400">VL</span>
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10 border border-accent/20">
+            <span className="text-xs font-bold font-mono text-accent">VL</span>
           </div>
           <div>
-            <span className="font-display text-lg font-bold text-amber-400 tracking-tight">VaaniLedger</span>
-            <span className="ml-2 hidden text-[10px] text-slate-500 md:inline">voice-first finance</span>
+            <span className="font-display text-lg font-bold text-accent tracking-tight">VaaniLedger</span>
+            <span className="ml-2 hidden text-[10px] text-textSecondary md:inline">{t("app.voiceFirst")}</span>
           </div>
         </div>
 
@@ -56,11 +56,11 @@ export const AppHeader = () => {
                 {isActive && (
                   <motion.span
                     layoutId="nav-indicator"
-                    className="absolute inset-0 rounded-lg bg-amber-400/10 border border-amber-400/20"
+                    className="absolute inset-0 rounded-lg bg-accent text-white"
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
                   />
                 )}
-                <span className={isActive ? "text-amber-400 relative z-10" : "text-slate-400 hover:text-white relative z-10"}>
+                <span className={isActive ? "text-white relative z-10" : "text-textSecondary hover:text-accent relative z-10"}>
                   {t(item.labelKey)}
                 </span>
               </Link>
@@ -73,20 +73,20 @@ export const AppHeader = () => {
           <LanguageSwitcher />
           {status === "authenticated" ? (
             <>
-              <span className="hidden text-xs text-slate-500 lg:block truncate max-w-[160px]">{data.user?.email}</span>
+              <span className="hidden text-xs text-textSecondary lg:block truncate max-w-[160px]">{data.user?.email}</span>
               <button
                 onClick={() => signOut({ callbackUrl: "/auth" })}
-                className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-slate-400 transition hover:border-amber-400/30 hover:text-amber-400"
+                className="rounded-lg border border-accent/12 px-3 py-1.5 text-xs text-textSecondary transition hover:border-accent/30 hover:text-accent"
               >
-                Logout
+                {t("nav.logout")}
               </button>
             </>
           ) : (
             <Link
               href="/auth"
-              className="rounded-lg bg-amber-400 px-4 py-1.5 text-xs font-semibold text-black transition hover:bg-amber-300"
+              className="rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-[#CC4400] shadow-glow"
             >
-              Sign In
+              {t("nav.signIn")}
             </Link>
           )}
         </div>
@@ -101,11 +101,11 @@ export const AppHeader = () => {
               {isActive && (
                 <motion.span
                   layoutId="nav-indicator-mobile"
-                  className="absolute inset-0 rounded-lg bg-amber-400/10 border border-amber-400/20"
+                  className="absolute inset-0 rounded-lg bg-accent"
                   transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 />
               )}
-              <span className={isActive ? "text-amber-400 relative z-10" : "text-slate-400 hover:text-white relative z-10"}>
+              <span className={isActive ? "text-white relative z-10" : "text-textSecondary hover:text-accent relative z-10"}>
                 {t(item.labelKey)}
               </span>
             </Link>
