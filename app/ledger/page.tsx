@@ -3,28 +3,47 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { PageSection } from "@/components/ui/PageSection";
+import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import type { TransactionRecord } from "@/lib/types/domain";
-import { getStoredTransactions, subscribeToTransactionCreated } from "@/lib/utils/clientTransactions";
+import {
+  getStoredTransactions,
+  refreshStoredTransactionsFromApi,
+  removeStoredTransaction,
+  subscribeToTransactionCreated,
+  subscribeToTransactionsChange,
+} from "@/lib/utils/clientTransactions";
 import { formatDateTime } from "@/lib/utils/date";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
 
-const headers = ["Date", "Type", "Category", "Description", "Amount"];
+const headers = ["Date", "Type", "Category", "Description", "Amount", "Actions"];
 
 export default function LedgerPage() {
   const { t } = useTranslation();
+  const { status, isAuthenticated } = useRequireAuth();
   const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setTransactions(getStoredTransactions());
-    const unsubscribe = subscribeToTransactionCreated((transaction) => {
+    const unsubscribeCreated = subscribeToTransactionCreated((transaction) => {
       setTransactions((previous) => [transaction, ...previous.filter((item) => item.id !== transaction.id)]);
     });
+    const unsubscribeChanges = subscribeToTransactionsChange((next) => {
+      setTransactions(next);
+    });
 
-    return unsubscribe;
+    void refreshStoredTransactionsFromApi().catch(() => undefined);
+
+    return () => {
+      unsubscribeCreated();
+      unsubscribeChanges();
+    };
   }, []);
 
   const filteredTransactions = useMemo(() => {
@@ -38,6 +57,38 @@ export default function LedgerPage() {
     );
   }, [searchTerm, transactions]);
 
+  const onDeleteTransaction = async (transactionId: string) => {
+    if (deletingId) {
+      return;
+    }
+
+    setDeletingId(transactionId);
+    setErrorMessage(null);
+
+    try {
+      const response = await fetch(`/api/transactions/${transactionId}`, { method: "DELETE" });
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        error?: { message?: string };
+      };
+
+      if (!response.ok || payload.ok === false) {
+        throw new Error(payload.error?.message ?? "Failed to delete transaction.");
+      }
+
+      removeStoredTransaction(transactionId);
+      await refreshStoredTransactionsFromApi();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Failed to delete transaction.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  if (status === "loading" || !isAuthenticated) {
+    return <div className="text-sm text-textSecondary">Checking authentication...</div>;
+  }
+
   return (
     <PageSection title={t("ledger.title")} subtitle="Transaction table placeholder">
       <Card>
@@ -46,6 +97,7 @@ export default function LedgerPage() {
           <Input placeholder="Category filter" />
           <Input placeholder="Date range filter" />
         </div>
+        {errorMessage ? <p className="mb-3 text-sm text-expense">{errorMessage}</p> : null}
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] border-collapse text-left text-sm">
@@ -76,6 +128,18 @@ export default function LedgerPage() {
                     <td className="px-3 py-3 text-textSecondary">{item.description ?? item.rawInput ?? "-"}</td>
                     <td className={`px-3 py-3 font-mono ${item.type === "income" ? "text-income" : "text-expense"}`}>
                       {formatCurrency(item.amount)}
+                    </td>
+                    <td className="px-3 py-3">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-8 px-2 text-expense"
+                        onClick={() => void onDeleteTransaction(item.id)}
+                        disabled={deletingId === item.id}
+                        aria-label="Delete transaction"
+                      >
+                        {deletingId === item.id ? "..." : "🗑"}
+                      </Button>
                     </td>
                   </tr>
                 ))

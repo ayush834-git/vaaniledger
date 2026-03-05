@@ -5,17 +5,14 @@ import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "rec
 
 import { Card } from "@/components/ui/Card";
 
-const data = [
-  { day: "Mon", value: 0 },
-  { day: "Tue", value: 0 },
-  { day: "Wed", value: 0 },
-  { day: "Thu", value: 0 },
-  { day: "Fri", value: 0 },
-  { day: "Sat", value: 0 },
-  { day: "Sun", value: 0 },
-];
+interface ProfitLineChartProps {
+  data: Array<{
+    day: string;
+    value: number;
+  }>;
+}
 
-export const ProfitLineChart = () => {
+export const ProfitLineChart = ({ data }: ProfitLineChartProps) => {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {

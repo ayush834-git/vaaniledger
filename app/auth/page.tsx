@@ -1,7 +1,8 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { signIn } from "next-auth/react";
+import { FormEvent, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { signIn, useSession } from "next-auth/react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/Button";
@@ -10,10 +11,18 @@ import { Input } from "@/components/ui/Input";
 import { PageSection } from "@/components/ui/PageSection";
 
 export default function AuthPage() {
+  const router = useRouter();
+  const { status } = useSession();
   const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.replace("/dashboard");
+    }
+  }, [router, status]);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

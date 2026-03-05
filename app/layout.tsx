@@ -3,8 +3,8 @@ import { JetBrains_Mono, Noto_Sans, Noto_Serif_Devanagari } from "next/font/goog
 
 import "@/app/globals.css";
 import { AppHeader } from "@/components/layout/AppHeader";
+import { AppProviders } from "@/components/providers/AppProviders";
 import { Shell } from "@/components/layout/Shell";
-import { I18nProvider } from "@/lib/i18n/provider";
 
 const display = Noto_Serif_Devanagari({
   subsets: ["latin", "devanagari"],
@@ -33,12 +33,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={`${display.variable} ${body.variable} ${mono.variable} font-body antialiased`}>
-        <I18nProvider>
+        <AppProviders>
           <Shell>
             <AppHeader />
             <main className="mt-6">{children}</main>
           </Shell>
-        </I18nProvider>
+        </AppProviders>
       </body>
     </html>
   );

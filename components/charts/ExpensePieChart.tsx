@@ -5,13 +5,16 @@ import { Pie, PieChart, ResponsiveContainer, Tooltip, Cell } from "recharts";
 
 import { Card } from "@/components/ui/Card";
 
-const data = [
-  { name: "Sales", value: 0, color: "#22C55E" },
-  { name: "Inventory", value: 0, color: "#EF4444" },
-  { name: "Rent", value: 0, color: "#F59E0B" },
-];
+interface ExpensePieChartProps {
+  data: Array<{
+    name: string;
+    value: number;
+  }>;
+}
 
-export const ExpensePieChart = () => {
+const COLOR_SCALE = ["#EF4444", "#F59E0B", "#22C55E", "#06B6D4", "#8B5CF6", "#F97316"];
+
+export const ExpensePieChart = ({ data }: ExpensePieChartProps) => {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -26,8 +29,8 @@ export const ExpensePieChart = () => {
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie data={data} dataKey="value" nameKey="name" innerRadius={45} outerRadius={75}>
-                {data.map((entry) => (
-                  <Cell key={entry.name} fill={entry.color} />
+                {data.map((entry, index) => (
+                  <Cell key={entry.name} fill={COLOR_SCALE[index % COLOR_SCALE.length]} />
                 ))}
               </Pie>
               <Tooltip

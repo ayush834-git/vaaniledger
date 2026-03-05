@@ -5,17 +5,15 @@ import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recha
 
 import { Card } from "@/components/ui/Card";
 
-const data = [
-  { day: "Mon", income: 0, expense: 0 },
-  { day: "Tue", income: 0, expense: 0 },
-  { day: "Wed", income: 0, expense: 0 },
-  { day: "Thu", income: 0, expense: 0 },
-  { day: "Fri", income: 0, expense: 0 },
-  { day: "Sat", income: 0, expense: 0 },
-  { day: "Sun", income: 0, expense: 0 },
-];
+interface IncomeExpenseBarChartProps {
+  data: Array<{
+    day: string;
+    income: number;
+    expense: number;
+  }>;
+}
 
-export const IncomeExpenseBarChart = () => {
+export const IncomeExpenseBarChart = ({ data }: IncomeExpenseBarChartProps) => {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {

@@ -46,7 +46,14 @@ type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
 
 type ParseResponse = {
   success?: boolean;
+  intent?: "transaction" | "chat" | "insight" | "command";
   transaction?: TransactionRecord;
+  reply?: string;
+  insights?: Array<unknown>;
+  commandResult?: {
+    message?: string;
+    deletedTransactionId?: string;
+  };
   error?: {
     message?: string;
   };
@@ -112,13 +119,24 @@ export const MicButtonPlaceholder = ({ onTransactionCreated }: MicButtonPlacehol
         });
 
         const payload = (await response.json()) as ParseResponse;
-        if (!response.ok || !payload?.success || !payload.transaction) {
+        if (!response.ok || !payload?.success) {
           throw new Error(payload?.error?.message ?? "Failed to parse transaction.");
         }
 
-        addStoredTransaction(payload.transaction);
-        onTransactionCreated?.(payload.transaction);
-        setSuccessMessage("Transaction saved successfully.");
+        if (payload.transaction) {
+          addStoredTransaction(payload.transaction);
+          onTransactionCreated?.(payload.transaction);
+          setSuccessMessage("Saved");
+        } else if (payload.reply) {
+          setSuccessMessage(payload.reply);
+        } else if (Array.isArray(payload.insights)) {
+          setSuccessMessage(`Generated ${payload.insights.length} insights`);
+        } else if (payload.commandResult?.message) {
+          setSuccessMessage(payload.commandResult.message);
+        } else {
+          setSuccessMessage("Saved");
+        }
+
         setTranscript("");
         transcriptRef.current = "";
       } catch (error) {
@@ -235,7 +253,7 @@ export const MicButtonPlaceholder = ({ onTransactionCreated }: MicButtonPlacehol
       {isParsing ? (
         <div className="flex items-center gap-2 text-sm text-textSecondary">
           <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-textSecondary border-t-transparent" />
-          Parsing transaction...
+          Processing...
         </div>
       ) : null}
       {transcript ? (
