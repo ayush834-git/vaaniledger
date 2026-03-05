@@ -1,0 +1,47 @@
+{
+  "app": {
+    "title": "VaaniLedger",
+    "subtitle": "Voice-first AI financial assistant",
+    "recentTransactions": "Recent transactions"
+  },
+  "nav": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "ledger": "Ledger"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "summary": "Summary",
+    "insights": "Insights",
+    "chat": "Ask AI"
+  },
+  "ledger": {
+    "title": "Ledger",
+    "search": "Search transactions",
+    "empty": "No transactions yet"
+  },
+  "auth": {
+    "title": "Sign in",
+    "description": "Use email magic link",
+    "email": "Email",
+    "sendLink": "Send magic link",
+    "sent": "Magic link sent. Check your inbox."
+  },
+  "add": {
+    "transaction": "Add transaction"
+  },
+  "mic": {
+    "start": "Start recording",
+    "stop": "Stop recording"
+  },
+  "home": {
+    "placeholder": "Speak or type a transaction",
+    "textInputLabel": "Transaction input"
+  },
+  "common": {
+    "amount": "Amount",
+    "category": "Category",
+    "type": "Type",
+    "date": "Date"
+  }
+}
