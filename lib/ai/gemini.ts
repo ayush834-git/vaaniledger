@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import {
   buildFinancialChatPrompt,
+  buildIntentDetectionPrompt,
   buildInsightsPrompt,
   buildParseTransactionPrompt,
   type ChatContextPayload,
@@ -13,6 +14,8 @@ import {
   TransactionParseSchema,
 } from "@/lib/ai/schemas";
 import type { SupportedLanguage } from "@/lib/types/domain";
+
+export type AssistantIntent = "transaction" | "chat" | "insight" | "command";
 
 class AIParseError extends Error {
   code: string;
@@ -102,6 +105,35 @@ const getTextFromGeminiResponse = (payload: unknown): string => {
   return text;
 };
 
+const intentResponseSchema = z
+  .object({
+    intent: z.enum(["transaction", "chat", "insight", "command"]),
+  })
+  .strict();
+
+const fallbackDetectIntent = (input: string): AssistantIntent => {
+  const normalized = input.toLowerCase().trim();
+
+  const commandPattern = /\b(delete|remove|undo|revert|cancel|edit|update)\b/;
+  if (commandPattern.test(normalized)) {
+    return "command";
+  }
+
+  const insightPattern = /\b(summary|insight|trend|spend|spent|expense|income|profit|report|week|month)\b/;
+  if (normalized.includes("?") || insightPattern.test(normalized)) {
+    return "insight";
+  }
+
+  const transactionPattern =
+    /\b(spent|paid|bought|purchase|received|earned|sold|income|expense|rent|salary|groceries|fuel|bill)\b/;
+  const hasAmount = /\d+/.test(normalized);
+  if (transactionPattern.test(normalized) || hasAmount) {
+    return "transaction";
+  }
+
+  return "chat";
+};
+
 const generateJsonFromGemini = async (prompt: string): Promise<unknown> => {
   const apiKey = getGeminiApiKey();
 
@@ -141,6 +173,22 @@ const generateJsonFromGemini = async (prompt: string): Promise<unknown> => {
   const responseJson = await response.json();
   const modelText = getTextFromGeminiResponse(responseJson);
   return extractJsonObject(modelText);
+};
+
+export const detectIntent = async (input: string): Promise<AssistantIntent> => {
+  try {
+    const prompt = buildIntentDetectionPrompt(input);
+    const extractedJson = await generateJsonFromGemini(prompt);
+    const validated = intentResponseSchema.safeParse(extractedJson);
+
+    if (!validated.success) {
+      return fallbackDetectIntent(input);
+    }
+
+    return validated.data.intent;
+  } catch {
+    return fallbackDetectIntent(input);
+  }
 };
 
 export const parseTransactionWithAI = async (

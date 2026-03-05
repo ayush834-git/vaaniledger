@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
-import { AIParseError, parseTransactionWithAI } from "@/lib/ai/gemini";
+import { AIParseError, detectIntent, parseTransactionWithAI } from "@/lib/ai/gemini";
 import { parseTransactionInputSchema, TransactionParseSchema } from "@/lib/ai/schemas";
 import { getServerAuthSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
+import { chatWithFinanceAssistant } from "@/lib/services/chat";
+import { generateInsights } from "@/lib/services/insights";
 import { createTransaction } from "@/lib/services/transactions";
 
 const parseErrorResponse = (message: string, code = "BAD_REQUEST") => ({
@@ -15,6 +17,72 @@ const parseErrorResponse = (message: string, code = "BAD_REQUEST") => ({
     message,
   },
 });
+
+const handleCommand = async ({
+  userId,
+  input,
+}: {
+  userId: string;
+  input: string;
+}): Promise<{
+  success: true;
+  intent: "command";
+  commandResult: {
+    action: string;
+    status: "completed" | "noop";
+    message: string;
+    deletedTransactionId?: string;
+  };
+}> => {
+  const normalized = input.toLowerCase();
+  const isDeleteLastCommand =
+    /(delete|remove|undo)/.test(normalized) && /(last|previous|entry|transaction)/.test(normalized);
+
+  if (!isDeleteLastCommand) {
+    return {
+      success: true,
+      intent: "command",
+      commandResult: {
+        action: "unsupported",
+        status: "noop",
+        message: "Command understood but not supported yet.",
+      },
+    };
+  }
+
+  const latestTransaction = await prisma.transaction.findFirst({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    select: { id: true },
+  });
+
+  if (!latestTransaction) {
+    return {
+      success: true,
+      intent: "command",
+      commandResult: {
+        action: "delete_last_transaction",
+        status: "noop",
+        message: "No transaction found to delete.",
+      },
+    };
+  }
+
+  await prisma.transaction.delete({
+    where: { id: latestTransaction.id },
+  });
+
+  return {
+    success: true,
+    intent: "command",
+    commandResult: {
+      action: "delete_last_transaction",
+      status: "completed",
+      message: "Last transaction deleted successfully.",
+      deletedTransactionId: latestTransaction.id,
+    },
+  };
+};
 
 const resolveUserId = async (language: "en" | "hi" | "te" | "ta"): Promise<string> => {
   const session = await getServerAuthSession();
@@ -52,33 +120,72 @@ export async function POST(request: Request) {
     }
 
     const language = parsed.data.language ?? "en";
-    const aiResult = await parseTransactionWithAI(parsed.data.rawInput, language);
-    const validatedAIResult = TransactionParseSchema.safeParse(aiResult);
-
-    if (!validatedAIResult.success) {
-      return NextResponse.json(
-        parseErrorResponse("AI output failed validation.", "AI_VALIDATION_ERROR"),
-        { status: 422 },
-      );
-    }
-
     const userId = await resolveUserId(language);
-    const transaction = await createTransaction(userId, {
-      amount: validatedAIResult.data.amount,
-      type: validatedAIResult.data.type,
-      category: validatedAIResult.data.category,
-      description: validatedAIResult.data.description,
-      rawInput: parsed.data.rawInput,
-      inputLanguage: language,
-    });
+    const intent = await detectIntent(parsed.data.rawInput);
 
-    return NextResponse.json(
-      {
-        success: true,
-        transaction,
-      },
-      { status: 201 },
-    );
+    switch (intent) {
+      case "transaction": {
+        const aiResult = await parseTransactionWithAI(parsed.data.rawInput, language);
+        const validatedAIResult = TransactionParseSchema.safeParse(aiResult);
+
+        if (!validatedAIResult.success) {
+          return NextResponse.json(
+            parseErrorResponse("AI output failed validation.", "AI_VALIDATION_ERROR"),
+            { status: 422 },
+          );
+        }
+
+        const transaction = await createTransaction(userId, {
+          amount: validatedAIResult.data.amount,
+          type: validatedAIResult.data.type,
+          category: validatedAIResult.data.category,
+          description: validatedAIResult.data.description,
+          rawInput: parsed.data.rawInput,
+          inputLanguage: language,
+        });
+
+        return NextResponse.json(
+          {
+            success: true,
+            intent,
+            transaction,
+          },
+          { status: 201 },
+        );
+      }
+
+      case "chat": {
+        const reply = await chatWithFinanceAssistant(userId, parsed.data.rawInput, language);
+        return NextResponse.json({
+          success: true,
+          intent,
+          reply,
+        });
+      }
+
+      case "insight": {
+        const insights = await generateInsights(userId);
+        return NextResponse.json({
+          success: true,
+          intent,
+          insights,
+        });
+      }
+
+      case "command": {
+        const commandResponse = await handleCommand({
+          userId,
+          input: parsed.data.rawInput,
+        });
+        return NextResponse.json(commandResponse);
+      }
+
+      default: {
+        return NextResponse.json(parseErrorResponse("Unable to resolve input intent.", "INTENT_ERROR"), {
+          status: 422,
+        });
+      }
+    }
   } catch (error) {
     if (error instanceof AIParseError) {
       return NextResponse.json(parseErrorResponse(error.message, error.code), { status: 422 });

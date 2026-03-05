@@ -142,3 +142,34 @@ Financial context:
 ${JSON.stringify(context)}
 `.trim();
 };
+
+export const buildIntentDetectionPrompt = (input: string): string => {
+  return `
+You are an intent router for VaaniLedger.
+Classify the user input into exactly one intent.
+
+Return ONLY valid JSON with this exact format:
+{
+  "intent": "transaction" | "chat" | "insight" | "command"
+}
+
+Intent rules:
+1) transaction: user is recording an income or expense.
+2) chat: greetings/small talk/general casual conversation.
+3) insight: user asks financial analysis questions (spending, profit, trends, summary).
+4) command: user asks to modify existing records (delete, undo, remove, edit).
+
+Examples:
+- "spent 200 on groceries" => {"intent":"transaction"}
+- "received 500 from client" => {"intent":"transaction"}
+- "hello" => {"intent":"chat"}
+- "how are you" => {"intent":"chat"}
+- "how much did I spend this week" => {"intent":"insight"}
+- "show my expenses" => {"intent":"insight"}
+- "delete last transaction" => {"intent":"command"}
+- "undo previous entry" => {"intent":"command"}
+
+User input:
+${JSON.stringify(input)}
+`.trim();
+};
