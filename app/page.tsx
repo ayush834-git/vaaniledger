@@ -1,33 +1,27 @@
 "use client";
 
-import { KeyboardEvent, useEffect, useMemo, useState } from "react";
+import { KeyboardEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { MicButtonPlaceholder } from "@/components/mic/MicButtonPlaceholder";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Input } from "@/components/ui/Input";
 import { PageSection } from "@/components/ui/PageSection";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
-import type { TransactionRecord } from "@/lib/types/domain";
-import {
-  addStoredTransaction,
-  getStoredTransactions,
-  refreshStoredTransactionsFromApi,
-  subscribeToTransactionCreated,
-  subscribeToTransactionsChange,
-} from "@/lib/utils/clientTransactions";
+import { useTransactions } from "@/lib/hooks/useTransactions";
+import type { ParsedTransactionDraft } from "@/lib/types/domain";
 import { formatDateTime } from "@/lib/utils/date";
+import { toUserFacingError } from "@/lib/utils/errorMessages";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
 
 type ParseTransactionResponse = {
   success?: boolean;
   intent?: "transaction" | "chat" | "insight" | "command";
-  transaction?: TransactionRecord;
+  parsedTransaction?: ParsedTransactionDraft;
   reply?: string;
   insights?: Array<unknown>;
   commandResult?: { message?: string; deletedTransactionId?: string };
-  error?: { message?: string };
+  error?: { code?: string; message?: string };
 };
 
 const resolveSupportedLanguage = (input: string) => {
@@ -41,34 +35,18 @@ const resolveSupportedLanguage = (input: string) => {
 export default function HomePage() {
   const { t, i18n } = useTranslation();
   const { status, isAuthenticated } = useRequireAuth();
-  const [recentTransactions, setRecentTransactions] = useState<TransactionRecord[]>([]);
+  const { transactions, createTransactionRecord, refreshTransactions } = useTransactions();
   const [manualInput, setManualInput] = useState("");
+  const [pendingTransaction, setPendingTransaction] = useState<ParsedTransactionDraft | null>(null);
+  const [pendingSource, setPendingSource] = useState<"text" | "mic" | null>(null);
+  const [micSavedSignal, setMicSavedSignal] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [inputMessage, setInputMessage] = useState<string | null>(null);
+  const [isSavingConfirmed, setIsSavingConfirmed] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const language = useMemo(() => resolveSupportedLanguage(i18n.language), [i18n.language]);
-
-  useEffect(() => {
-    setRecentTransactions(getStoredTransactions().slice(0, 5));
-    const unsubscribeCreated = subscribeToTransactionCreated((transaction) => {
-      setRecentTransactions((previous) => [transaction, ...previous.filter((item) => item.id !== transaction.id)].slice(0, 5));
-    });
-
-    const unsubscribeChanges = subscribeToTransactionsChange((transactions) => {
-      setRecentTransactions(transactions.slice(0, 5));
-    });
-
-    void refreshStoredTransactionsFromApi().catch(() => undefined);
-
-    return () => {
-      unsubscribeCreated();
-      unsubscribeChanges();
-    };
-  }, []);
-
-  const onTransactionCreated = (transaction: TransactionRecord) => {
-    setRecentTransactions((previous) => [transaction, ...previous.filter((item) => item.id !== transaction.id)].slice(0, 5));
-  };
+  const recentTransactions = useMemo(() => transactions.slice(0, 5), [transactions]);
 
   const submitManualInput = async () => {
     const rawInput = manualInput.trim();
@@ -77,7 +55,8 @@ export default function HomePage() {
     }
 
     setIsSubmitting(true);
-    setInputMessage("Processing...");
+    setStatusMessage("Processing...");
+    setErrorMessage(null);
 
     try {
       const response = await fetch("/api/parse-transaction", {
@@ -94,44 +73,113 @@ export default function HomePage() {
       const payload = (await response.json()) as ParseTransactionResponse;
 
       if (!response.ok || payload.success === false) {
-        throw new Error(payload.error?.message ?? "Failed to process input.");
+        throw new Error(
+          toUserFacingError(payload.error, {
+            fallback: "Could not process your input.",
+          }),
+        );
       }
 
-      if ("transaction" in payload && payload.transaction) {
-        addStoredTransaction(payload.transaction);
-        setManualInput("");
-        setInputMessage("Saved");
+      if (payload.intent === "transaction" && payload.parsedTransaction) {
+        setPendingTransaction(payload.parsedTransaction);
+        setPendingSource("text");
+        setStatusMessage("Review the parsed transaction and confirm to save.");
+        setErrorMessage(null);
         return;
       }
 
-      if ("reply" in payload && payload.reply) {
-        setInputMessage(payload.reply);
+      if (payload.reply) {
+        setPendingTransaction(null);
+        setPendingSource(null);
+        setStatusMessage(payload.reply);
         return;
       }
 
-      if ("insights" in payload && Array.isArray(payload.insights)) {
-        setInputMessage(`Generated ${payload.insights.length} insights.`);
+      if (Array.isArray(payload.insights)) {
+        setPendingTransaction(null);
+        setPendingSource(null);
+        setStatusMessage(`Generated ${payload.insights.length} insights.`);
         return;
       }
 
-      if ("commandResult" in payload && payload.commandResult?.message) {
-        setInputMessage(payload.commandResult.message);
+      if (payload.commandResult?.message) {
+        setPendingTransaction(null);
+        setPendingSource(null);
+        if (payload.commandResult.deletedTransactionId) {
+          await refreshTransactions().catch(() => undefined);
+        }
+        setStatusMessage(payload.commandResult.message);
         return;
       }
 
-      setInputMessage("Request completed.");
+      setStatusMessage("Request completed.");
     } catch (error) {
-      setInputMessage(error instanceof Error ? error.message : "Failed to process input.");
+      setErrorMessage(error instanceof Error ? error.message : "Could not process your input.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const onInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter") {
+  const onInputKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       void submitManualInput();
     }
+  };
+
+  const onConfirmParsedTransaction = async () => {
+    if (!pendingTransaction || isSavingConfirmed) {
+      return;
+    }
+
+    setIsSavingConfirmed(true);
+    setErrorMessage(null);
+    setStatusMessage("Processing...");
+
+    try {
+      await createTransactionRecord({
+        amount: pendingTransaction.amount,
+        type: pendingTransaction.type,
+        category: pendingTransaction.category,
+        description: pendingTransaction.description,
+        rawInput: pendingTransaction.rawInput,
+        inputLanguage: pendingTransaction.inputLanguage,
+      });
+      setPendingTransaction(null);
+      if (pendingSource === "mic") {
+        setMicSavedSignal((previous) => previous + 1);
+      }
+      setPendingSource(null);
+      setManualInput("");
+      setStatusMessage("Saved");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Failed to save transaction.");
+    } finally {
+      setIsSavingConfirmed(false);
+    }
+  };
+
+  const onEditParsedTransaction = () => {
+    if (!pendingTransaction) {
+      return;
+    }
+    setManualInput(pendingTransaction.rawInput);
+    setPendingTransaction(null);
+    setPendingSource(null);
+    setStatusMessage("Edit your text and submit again.");
+  };
+
+  const onCancelParsedTransaction = () => {
+    setPendingTransaction(null);
+    setPendingSource(null);
+    setStatusMessage("Transaction cancelled.");
+  };
+
+  const onMicParsedTransaction = (transaction: ParsedTransactionDraft) => {
+    setPendingTransaction(transaction);
+    setPendingSource("mic");
+    setErrorMessage(null);
+    setStatusMessage("Review the parsed transaction and confirm to save.");
   };
 
   if (status === "loading" || !isAuthenticated) {
@@ -145,24 +193,59 @@ export default function HomePage() {
           <Card>
             <h2 className="mb-4 text-lg font-semibold">{t("add.transaction")}</h2>
             <div className="space-y-5">
-              <MicButtonPlaceholder onTransactionCreated={onTransactionCreated} />
+              <MicButtonPlaceholder onTransactionParsed={onMicParsedTransaction} savedSignal={micSavedSignal} />
               <label className="block text-sm text-textSecondary" htmlFor="transaction-input">
                 {t("home.textInputLabel")}
               </label>
               <div className="flex gap-2">
-                <Input
+                <textarea
                   id="transaction-input"
                   placeholder={t("home.placeholder")}
                   value={manualInput}
                   onChange={(event) => setManualInput(event.target.value)}
                   onKeyDown={onInputKeyDown}
+                  rows={3}
+                  className="w-full resize-y rounded-lg border border-white/10 bg-bg/60 px-3 py-2 text-sm text-textPrimary outline-none transition placeholder:text-textSecondary focus:border-accent"
                 />
                 <Button type="button" onClick={() => void submitManualInput()} disabled={isSubmitting}>
                   Add Transaction
                 </Button>
               </div>
               <p className="text-xs text-textSecondary">Example: spent 200 on groceries</p>
-              {inputMessage ? <p className="text-sm text-textSecondary">{inputMessage}</p> : null}
+
+              {pendingTransaction ? (
+                <Card className="border border-accent/30 bg-accent/5 p-4">
+                  <p className="text-sm font-semibold text-accent">Confirm Transaction</p>
+                  <div className="mt-3 grid gap-2 text-sm text-textSecondary">
+                    <p>
+                      <span className="text-textPrimary">Amount:</span> {formatCurrency(pendingTransaction.amount)}
+                    </p>
+                    <p>
+                      <span className="text-textPrimary">Type:</span> {pendingTransaction.type}
+                    </p>
+                    <p>
+                      <span className="text-textPrimary">Category:</span> {pendingTransaction.category}
+                    </p>
+                    <p>
+                      <span className="text-textPrimary">Description:</span> {pendingTransaction.description}
+                    </p>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Button type="button" onClick={() => void onConfirmParsedTransaction()} disabled={isSavingConfirmed}>
+                      {isSavingConfirmed ? "Saving..." : "Confirm"}
+                    </Button>
+                    <Button type="button" variant="ghost" onClick={onEditParsedTransaction}>
+                      Edit
+                    </Button>
+                    <Button type="button" variant="ghost" onClick={onCancelParsedTransaction}>
+                      Cancel
+                    </Button>
+                  </div>
+                </Card>
+              ) : null}
+
+              {statusMessage ? <p className="text-sm text-textSecondary">{statusMessage}</p> : null}
+              {errorMessage ? <p className="text-sm text-expense">{errorMessage}</p> : null}
             </div>
           </Card>
           <Card>

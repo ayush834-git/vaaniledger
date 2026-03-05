@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/Button";
@@ -8,14 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { PageSection } from "@/components/ui/PageSection";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
-import type { TransactionRecord } from "@/lib/types/domain";
-import {
-  getStoredTransactions,
-  refreshStoredTransactionsFromApi,
-  removeStoredTransaction,
-  subscribeToTransactionCreated,
-  subscribeToTransactionsChange,
-} from "@/lib/utils/clientTransactions";
+import { useTransactions } from "@/lib/hooks/useTransactions";
 import { formatDateTime } from "@/lib/utils/date";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
 
@@ -24,27 +17,10 @@ const headers = ["Date", "Type", "Category", "Description", "Amount", "Actions"]
 export default function LedgerPage() {
   const { t } = useTranslation();
   const { status, isAuthenticated } = useRequireAuth();
-  const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
+  const { transactions, deleteTransactionRecord, isLoading } = useTransactions();
   const [searchTerm, setSearchTerm] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    setTransactions(getStoredTransactions());
-    const unsubscribeCreated = subscribeToTransactionCreated((transaction) => {
-      setTransactions((previous) => [transaction, ...previous.filter((item) => item.id !== transaction.id)]);
-    });
-    const unsubscribeChanges = subscribeToTransactionsChange((next) => {
-      setTransactions(next);
-    });
-
-    void refreshStoredTransactionsFromApi().catch(() => undefined);
-
-    return () => {
-      unsubscribeCreated();
-      unsubscribeChanges();
-    };
-  }, []);
 
   const filteredTransactions = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
@@ -66,18 +42,7 @@ export default function LedgerPage() {
     setErrorMessage(null);
 
     try {
-      const response = await fetch(`/api/transactions/${transactionId}`, { method: "DELETE" });
-      const payload = (await response.json()) as {
-        ok?: boolean;
-        error?: { message?: string };
-      };
-
-      if (!response.ok || payload.ok === false) {
-        throw new Error(payload.error?.message ?? "Failed to delete transaction.");
-      }
-
-      removeStoredTransaction(transactionId);
-      await refreshStoredTransactionsFromApi();
+      await deleteTransactionRecord(transactionId);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Failed to delete transaction.");
     } finally {
@@ -85,7 +50,7 @@ export default function LedgerPage() {
     }
   };
 
-  if (status === "loading" || !isAuthenticated) {
+  if (status === "loading" || isLoading || !isAuthenticated) {
     return <div className="text-sm text-textSecondary">Checking authentication...</div>;
   }
 
@@ -138,7 +103,7 @@ export default function LedgerPage() {
                         disabled={deletingId === item.id}
                         aria-label="Delete transaction"
                       >
-                        {deletingId === item.id ? "..." : "🗑"}
+                        {deletingId === item.id ? "..." : "Delete"}
                       </Button>
                     </td>
                   </tr>

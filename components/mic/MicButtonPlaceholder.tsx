@@ -4,8 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 
-import { addStoredTransaction } from "@/lib/utils/clientTransactions";
-import type { SupportedLanguage, TransactionRecord } from "@/lib/types/domain";
+import type { ParsedTransactionDraft, SupportedLanguage } from "@/lib/types/domain";
+import { refreshStoredTransactionsFromApi } from "@/lib/utils/clientTransactions";
+import { toUserFacingError } from "@/lib/utils/errorMessages";
 
 type SpeechAlternative = {
   transcript: string;
@@ -47,7 +48,7 @@ type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
 type ParseResponse = {
   success?: boolean;
   intent?: "transaction" | "chat" | "insight" | "command";
-  transaction?: TransactionRecord;
+  parsedTransaction?: ParsedTransactionDraft;
   reply?: string;
   insights?: Array<unknown>;
   commandResult?: {
@@ -55,12 +56,14 @@ type ParseResponse = {
     deletedTransactionId?: string;
   };
   error?: {
+    code?: string;
     message?: string;
   };
 };
 
 interface MicButtonPlaceholderProps {
-  onTransactionCreated?: (transaction: TransactionRecord) => void;
+  onTransactionParsed?: (transaction: ParsedTransactionDraft) => void;
+  savedSignal?: number;
 }
 
 const resolveSupportedLanguage = (input: string): SupportedLanguage => {
@@ -78,31 +81,40 @@ const mapToSpeechLocale = (lang: SupportedLanguage): string => {
   return "en-IN";
 };
 
-export const MicButtonPlaceholder = ({ onTransactionCreated }: MicButtonPlaceholderProps) => {
+export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: MicButtonPlaceholderProps) => {
   const { t, i18n } = useTranslation();
   const [isSupported, setIsSupported] = useState(true);
-  const [isListening, setIsListening] = useState(false);
-  const [isParsing, setIsParsing] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const transcriptRef = useRef("");
-  const parseOnEndRef = useRef(false);
+  const submittedOnStopRef = useRef(false);
+  const shouldRestartRef = useRef(false);
+  const finalTranscriptRef = useRef("");
+  const liveTranscriptRef = useRef("");
 
   const language = useMemo(() => resolveSupportedLanguage(i18n.language), [i18n.language]);
   const speechLocale = useMemo(() => mapToSpeechLocale(language), [language]);
+
+  useEffect(() => {
+    if (savedSignal > 0) {
+      setSuccessMessage("Saved");
+      setErrorMessage(null);
+    }
+  }, [savedSignal]);
 
   const parseTranscript = useCallback(
     async (value: string) => {
       const rawInput = value.trim();
       if (!rawInput) {
-        setErrorMessage("No speech detected. Please try again.");
+        setErrorMessage("Could not capture speech. Please try again.");
         return;
       }
 
-      setIsParsing(true);
+      setIsProcessing(true);
       setErrorMessage(null);
       setSuccessMessage(null);
 
@@ -119,34 +131,41 @@ export const MicButtonPlaceholder = ({ onTransactionCreated }: MicButtonPlacehol
         });
 
         const payload = (await response.json()) as ParseResponse;
-        if (!response.ok || !payload?.success) {
-          throw new Error(payload?.error?.message ?? "Failed to parse transaction.");
+        if (!response.ok || payload.success === false) {
+          throw new Error(
+            toUserFacingError(payload.error, {
+              fallback: "Could not process your input.",
+            }),
+          );
         }
 
-        if (payload.transaction) {
-          addStoredTransaction(payload.transaction);
-          onTransactionCreated?.(payload.transaction);
-          setSuccessMessage("Saved");
+        if (payload.intent === "transaction" && payload.parsedTransaction) {
+          onTransactionParsed?.(payload.parsedTransaction);
+          setSuccessMessage("Processing complete. Confirm to save.");
         } else if (payload.reply) {
           setSuccessMessage(payload.reply);
         } else if (Array.isArray(payload.insights)) {
           setSuccessMessage(`Generated ${payload.insights.length} insights`);
         } else if (payload.commandResult?.message) {
+          if (payload.commandResult.deletedTransactionId) {
+            await refreshStoredTransactionsFromApi().catch(() => undefined);
+          }
           setSuccessMessage(payload.commandResult.message);
         } else {
-          setSuccessMessage("Saved");
+          setSuccessMessage("Request completed.");
         }
 
         setTranscript("");
-        transcriptRef.current = "";
+        liveTranscriptRef.current = "";
+        finalTranscriptRef.current = "";
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to save transaction.";
+        const message = error instanceof Error ? error.message : "Could not process your input.";
         setErrorMessage(message);
       } finally {
-        setIsParsing(false);
+        setIsProcessing(false);
       }
     },
-    [language, onTransactionCreated],
+    [language, onTransactionParsed],
   );
 
   useEffect(() => {
@@ -166,33 +185,53 @@ export const MicButtonPlaceholder = ({ onTransactionCreated }: MicButtonPlacehol
     }
 
     const recognition = new Recognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.continuous = true;
+    recognition.interimResults = true;
     recognition.lang = speechLocale;
 
     recognition.onresult = (event) => {
-      let spokenText = "";
+      let interim = "";
       for (let idx = event.resultIndex; idx < event.results.length; idx += 1) {
-        spokenText += event.results[idx][0]?.transcript ?? "";
+        const piece = event.results[idx][0]?.transcript ?? "";
+        if (event.results[idx].isFinal) {
+          finalTranscriptRef.current = `${finalTranscriptRef.current} ${piece}`.trim();
+        } else {
+          interim = `${interim} ${piece}`.trim();
+        }
       }
-      const trimmed = spokenText.trim();
-      setTranscript(trimmed);
-      transcriptRef.current = trimmed;
+      const merged = `${finalTranscriptRef.current} ${interim}`.trim();
+      liveTranscriptRef.current = merged;
+      setTranscript(merged);
     };
 
     recognition.onerror = (event) => {
-      parseOnEndRef.current = false;
-      setIsListening(false);
-      setErrorMessage(`Speech recognition error: ${event.error}`);
+      shouldRestartRef.current = false;
+      submittedOnStopRef.current = false;
+      setIsRecording(false);
+      if (event.error !== "aborted") {
+        setErrorMessage("Speech recognition failed. Please try again.");
+      }
     };
 
-    recognition.onend = async () => {
-      setIsListening(false);
-      if (!parseOnEndRef.current) {
+    recognition.onend = () => {
+      if (shouldRestartRef.current) {
+        try {
+          recognition.start();
+          return;
+        } catch {
+          shouldRestartRef.current = false;
+          setIsRecording(false);
+          setErrorMessage("Microphone stopped unexpectedly. Please try again.");
+          return;
+        }
+      }
+
+      setIsRecording(false);
+      if (!submittedOnStopRef.current) {
         return;
       }
-      parseOnEndRef.current = false;
-      await parseTranscript(transcriptRef.current);
+      submittedOnStopRef.current = false;
+      void parseTranscript(finalTranscriptRef.current || liveTranscriptRef.current);
     };
 
     recognitionRef.current = recognition;
@@ -204,28 +243,32 @@ export const MicButtonPlaceholder = ({ onTransactionCreated }: MicButtonPlacehol
   }, [parseTranscript, speechLocale]);
 
   const onMicClick = () => {
-    if (!isSupported || !recognitionRef.current || isParsing) {
+    if (!isSupported || !recognitionRef.current || isProcessing) {
       return;
     }
 
-    if (isListening) {
-      parseOnEndRef.current = true;
+    if (isRecording) {
+      shouldRestartRef.current = false;
+      submittedOnStopRef.current = true;
       recognitionRef.current.stop();
       return;
     }
 
     try {
       recognitionRef.current.lang = speechLocale;
-      transcriptRef.current = "";
+      finalTranscriptRef.current = "";
+      liveTranscriptRef.current = "";
       setTranscript("");
       setErrorMessage(null);
       setSuccessMessage(null);
-      parseOnEndRef.current = true;
-      setIsListening(true);
+      submittedOnStopRef.current = false;
+      shouldRestartRef.current = true;
+      setIsRecording(true);
       recognitionRef.current.start();
     } catch {
-      setIsListening(false);
-      parseOnEndRef.current = false;
+      setIsRecording(false);
+      shouldRestartRef.current = false;
+      submittedOnStopRef.current = false;
       setErrorMessage("Unable to start microphone.");
     }
   };
@@ -233,14 +276,14 @@ export const MicButtonPlaceholder = ({ onTransactionCreated }: MicButtonPlacehol
   return (
     <div className="flex flex-col items-center gap-3">
       <motion.button
-        animate={{ scale: isListening ? [1, 1.08, 1] : [1, 1.04, 1] }}
+        animate={{ scale: isRecording ? [1, 1.08, 1] : [1, 1.04, 1] }}
         transition={{ duration: 1.8, repeat: Infinity }}
         className="relative inline-flex h-28 w-28 items-center justify-center rounded-full border border-accent/70 bg-accent text-bg shadow-soft disabled:cursor-not-allowed disabled:opacity-70"
-        disabled={!isSupported || isParsing}
+        disabled={!isSupported || isProcessing}
         onClick={onMicClick}
         type="button"
       >
-        <span className="text-4xl">{isParsing ? "..." : "Mic"}</span>
+        <span className="text-4xl">{isProcessing ? "..." : "Mic"}</span>
         <motion.span
           animate={{ opacity: [0.5, 0], scale: [1, 1.5] }}
           transition={{ duration: 2, repeat: Infinity }}
@@ -249,8 +292,8 @@ export const MicButtonPlaceholder = ({ onTransactionCreated }: MicButtonPlacehol
       </motion.button>
 
       {!isSupported ? <p className="text-sm text-expense">Speech recognition is not supported in this browser.</p> : null}
-      {isListening ? <p className="text-sm font-medium text-accent">Listening...</p> : null}
-      {isParsing ? (
+      {isRecording ? <p className="text-sm font-medium text-accent">Listening...</p> : null}
+      {isProcessing ? (
         <div className="flex items-center gap-2 text-sm text-textSecondary">
           <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-textSecondary border-t-transparent" />
           Processing...
@@ -263,8 +306,8 @@ export const MicButtonPlaceholder = ({ onTransactionCreated }: MicButtonPlacehol
       ) : null}
       {successMessage ? <p className="text-sm text-income">{successMessage}</p> : null}
       {errorMessage ? <p className="text-sm text-expense">{errorMessage}</p> : null}
-      {!isListening && !isParsing && isSupported ? (
-        <p className="text-sm text-textSecondary">{t("mic.start")}</p>
+      {!isRecording && !isProcessing && isSupported ? (
+        <p className="text-sm text-textSecondary">{t("mic.start")} / {t("mic.stop")}</p>
       ) : null}
     </div>
   );

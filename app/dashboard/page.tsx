@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { ChatPanel } from "@/components/chat/ChatPanel";
@@ -11,13 +11,8 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { PageSection } from "@/components/ui/PageSection";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
+import { useTransactions } from "@/lib/hooks/useTransactions";
 import type { TransactionRecord } from "@/lib/types/domain";
-import {
-  getStoredTransactions,
-  refreshStoredTransactionsFromApi,
-  subscribeToTransactionCreated,
-  subscribeToTransactionsChange,
-} from "@/lib/utils/clientTransactions";
 import { formatDateTime } from "@/lib/utils/date";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
 
@@ -60,25 +55,8 @@ const buildLast7DaysIncomeExpense = (transactions: TransactionRecord[]) => {
 export default function DashboardPage() {
   const { t } = useTranslation();
   const { status, isAuthenticated } = useRequireAuth();
-  const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
+  const { transactions, isLoading } = useTransactions();
   const [isChatOpen, setIsChatOpen] = useState(false);
-
-  useEffect(() => {
-    setTransactions(getStoredTransactions());
-    const unsubscribeCreated = subscribeToTransactionCreated((transaction) => {
-      setTransactions((previous) => [transaction, ...previous.filter((item) => item.id !== transaction.id)]);
-    });
-    const unsubscribeChanged = subscribeToTransactionsChange((next) => {
-      setTransactions(next);
-    });
-
-    void refreshStoredTransactionsFromApi().catch(() => undefined);
-
-    return () => {
-      unsubscribeCreated();
-      unsubscribeChanged();
-    };
-  }, []);
 
   const todaySummary = useMemo(() => {
     const start = new Date();
@@ -132,7 +110,7 @@ export default function DashboardPage() {
 
   const latestTransaction = transactions[0] ?? null;
 
-  if (status === "loading" || !isAuthenticated) {
+  if (status === "loading" || isLoading || !isAuthenticated) {
     return <div className="text-sm text-textSecondary">Checking authentication...</div>;
   }
 

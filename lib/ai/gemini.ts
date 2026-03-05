@@ -8,6 +8,7 @@ import {
   type ChatContextPayload,
   type InsightStatsPayload,
 } from "@/lib/ai/prompts";
+import { type AIProvider, generateWithGemini, generateWithGroq } from "@/lib/ai/providers";
 import {
   chatAssistantResponseSchema,
   generatedInsightsResponseSchema,
@@ -26,10 +27,6 @@ class AIParseError extends Error {
     this.name = "AIParseError";
   }
 }
-const GEMINI_MODEL = "gemini-2.5-flash";
-
-const GEMINI_ENDPOINT =
-  `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const extractJsonObject = (raw: string): unknown => {
   const cleaned = raw
@@ -53,109 +50,38 @@ const extractJsonObject = (raw: string): unknown => {
   }
 };
 
-const getGeminiApiKey = (): string => {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new AIParseError("GEMINI_API_KEY is missing.", "AI_CONFIG_ERROR");
-  }
-  return apiKey;
-};
-
-const getGeminiErrorMessage = (rawBody: string): string => {
-  try {
-    const parsed = JSON.parse(rawBody) as { error?: { message?: string } };
-    if (parsed.error?.message) {
-      return parsed.error.message;
-    }
-  } catch {
-    // Fall through and return raw body.
-  }
-
-  const trimmed = rawBody.trim();
-  return trimmed.length > 0 ? trimmed : "Unknown Gemini API error";
-};
-
-const getTextFromGeminiResponse = (payload: unknown): string => {
-  const responseSchema = z.object({
-    candidates: z
-      .array(
-        z.object({
-          content: z.object({
-            parts: z.array(
-              z.object({
-                text: z.string().optional(),
-              }),
-            ),
-          }),
-        }),
-      )
-      .optional(),
-  });
-
-  const parsed = responseSchema.safeParse(payload);
-  if (!parsed.success) {
-    throw new AIParseError("Unexpected Gemini response shape.", "INVALID_AI_RESPONSE");
-  }
-
-  const text = parsed.data.candidates?.[0]?.content.parts.map((part) => part.text ?? "").join("\n").trim();
-  if (!text) {
-    throw new AIParseError("Gemini returned an empty response.", "INVALID_AI_RESPONSE");
-  }
-
-  return text;
-};
-
 const intentResponseSchema = z
   .object({
     intent: z.enum(["transaction", "chat", "insight", "command"]),
   })
   .strict();
 
-const generateJsonFromGemini = async (prompt: string): Promise<unknown> => {
-  const apiKey = getGeminiApiKey();
+export const generateJsonFromAI = async (prompt: string, provider: AIProvider = "gemini"): Promise<unknown> => {
+  try {
+    const modelText = provider === "groq" ? await generateWithGroq(prompt) : await generateWithGemini(prompt);
+    return extractJsonObject(modelText);
+  } catch (error) {
+    if (error instanceof AIParseError) {
+      throw error;
+    }
 
-  const response = await fetch(`${GEMINI_ENDPOINT}?key=${apiKey}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: prompt }],
-        },
-      ],
-    }),
-  });
+    const code =
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      typeof (error as { code: unknown }).code === "string"
+        ? (error as { code: string }).code
+        : "AI_REQUEST_FAILED";
 
-  if (!response.ok) {
-    const errorBody = await response.text();
-    const errorMessage = getGeminiErrorMessage(errorBody);
-
-    console.error("Gemini API request failed", {
-      status: response.status,
-      statusText: response.statusText,
-      model: GEMINI_MODEL,
-      errorMessage,
-      errorBody,
-    });
-
-    throw new AIParseError(
-      `Gemini API request failed with status ${response.status}: ${errorMessage}`,
-      "AI_REQUEST_FAILED",
-    );
+    const message = error instanceof Error ? error.message : "AI request failed. Please try again.";
+    throw new AIParseError(message, code);
   }
-
-  const responseJson = await response.json();
-  const modelText = getTextFromGeminiResponse(responseJson);
-  return extractJsonObject(modelText);
 };
 
 export const detectIntent = async (input: string): Promise<AssistantIntent> => {
   try {
     const prompt = buildIntentDetectionPrompt(input);
-    const extractedJson = await generateJsonFromGemini(prompt);
+    const extractedJson = await generateJsonFromAI(prompt, "gemini");
     const validated = intentResponseSchema.safeParse(extractedJson);
 
     if (!validated.success) {
@@ -173,7 +99,7 @@ export const parseTransactionWithAI = async (
   language: SupportedLanguage,
 ): Promise<z.infer<typeof TransactionParseSchema>> => {
   const prompt = buildParseTransactionPrompt(input, language);
-  const extractedJson = await generateJsonFromGemini(prompt);
+  const extractedJson = await generateJsonFromAI(prompt, "gemini");
   const validated = TransactionParseSchema.safeParse(extractedJson);
 
   if (!validated.success) {
@@ -187,7 +113,7 @@ export const generateInsightsWithAI = async (
   stats: InsightStatsPayload,
 ): Promise<z.infer<typeof generatedInsightsResponseSchema>> => {
   const prompt = buildInsightsPrompt(stats);
-  const extractedJson = await generateJsonFromGemini(prompt);
+  const extractedJson = await generateJsonFromAI(prompt, "gemini");
   const validated = generatedInsightsResponseSchema.safeParse(extractedJson);
 
   if (!validated.success) {
@@ -205,7 +131,7 @@ export const generateChatReply = async (
   context: ChatContextPayload,
 ): Promise<string> => {
   const prompt = buildFinancialChatPrompt({ message, language, context });
-  const extractedJson = await generateJsonFromGemini(prompt);
+  const extractedJson = await generateJsonFromAI(prompt, "gemini");
   const validated = chatAssistantResponseSchema.safeParse(extractedJson);
 
   if (!validated.success) {

@@ -3,12 +3,11 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { AIParseError, detectIntent, parseTransactionWithAI } from "@/lib/ai/gemini";
-import { parseTransactionInputSchema, TransactionParseSchema } from "@/lib/ai/schemas";
+import { parseTransactionInputSchema, parsedTransactionSchema, TransactionParseSchema } from "@/lib/ai/schemas";
 import { getServerAuthSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { chatWithFinanceAssistant } from "@/lib/services/chat";
 import { generateInsights } from "@/lib/services/insights";
-import { createTransaction } from "@/lib/services/transactions";
 
 const parseErrorResponse = (message: string, code = "BAD_REQUEST") => ({
   success: false,
@@ -120,7 +119,6 @@ export async function POST(request: Request) {
     }
 
     const language = parsed.data.language ?? "en";
-    const userId = await resolveUserId(language);
     const intent = await detectIntent(parsed.data.rawInput);
 
     switch (intent) {
@@ -130,16 +128,13 @@ export async function POST(request: Request) {
 
         if (!validatedAIResult.success) {
           return NextResponse.json(
-            parseErrorResponse("AI output failed validation.", "AI_VALIDATION_ERROR"),
+            parseErrorResponse("Could not understand the transaction.", "AI_VALIDATION_ERROR"),
             { status: 422 },
           );
         }
 
-        const transaction = await createTransaction(userId, {
-          amount: validatedAIResult.data.amount,
-          type: validatedAIResult.data.type,
-          category: validatedAIResult.data.category,
-          description: validatedAIResult.data.description,
+        const parsedTransaction = parsedTransactionSchema.parse({
+          ...validatedAIResult.data,
           rawInput: parsed.data.rawInput,
           inputLanguage: language,
         });
@@ -148,13 +143,14 @@ export async function POST(request: Request) {
           {
             success: true,
             intent,
-            transaction,
+            parsedTransaction,
           },
-          { status: 201 },
+          { status: 200 },
         );
       }
 
       case "chat": {
+        const userId = await resolveUserId(language);
         const reply = await chatWithFinanceAssistant(userId, parsed.data.rawInput, language);
         return NextResponse.json({
           success: true,
@@ -164,6 +160,7 @@ export async function POST(request: Request) {
       }
 
       case "insight": {
+        const userId = await resolveUserId(language);
         const insights = await generateInsights(userId);
         return NextResponse.json({
           success: true,
@@ -173,6 +170,7 @@ export async function POST(request: Request) {
       }
 
       case "command": {
+        const userId = await resolveUserId(language);
         const commandResponse = await handleCommand({
           userId,
           input: parsed.data.rawInput,
@@ -181,6 +179,7 @@ export async function POST(request: Request) {
       }
 
       default: {
+        const userId = await resolveUserId(language);
         const reply = await chatWithFinanceAssistant(userId, parsed.data.rawInput, language);
         return NextResponse.json({
           success: true,
@@ -191,7 +190,14 @@ export async function POST(request: Request) {
     }
   } catch (error) {
     if (error instanceof AIParseError) {
-      return NextResponse.json(parseErrorResponse(error.message, error.code), { status: 422 });
+      const messageByCode: Record<string, string> = {
+        AI_RATE_LIMITED: "AI is busy right now. Please try again in a few seconds.",
+        INVALID_AI_RESPONSE: "Could not understand the transaction.",
+        AI_VALIDATION_ERROR: "Could not understand the transaction.",
+      };
+      const status = error.code === "AI_RATE_LIMITED" ? 429 : 422;
+      const message = messageByCode[error.code] ?? error.message;
+      return NextResponse.json(parseErrorResponse(message, error.code), { status });
     }
 
     if (error instanceof z.ZodError) {
@@ -205,12 +211,12 @@ export async function POST(request: Request) {
       error instanceof Prisma.PrismaClientUnknownRequestError
     ) {
       return NextResponse.json(
-        parseErrorResponse("Database operation failed while saving transaction.", "DATABASE_ERROR"),
+        parseErrorResponse("Database operation failed while processing request.", "DATABASE_ERROR"),
         { status: 500 },
       );
     }
 
-    return NextResponse.json(parseErrorResponse("Failed to parse and save transaction.", "INTERNAL_ERROR"), {
+    return NextResponse.json(parseErrorResponse("Failed to process transaction request.", "INTERNAL_ERROR"), {
       status: 500,
     });
   }
