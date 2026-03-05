@@ -8,7 +8,7 @@ import {
   type ChatContextPayload,
   type InsightStatsPayload,
 } from "@/lib/ai/prompts";
-import { type AIProvider, generateWithGemini, generateWithGroq } from "@/lib/ai/providers";
+import { generateJsonFromAI } from "@/lib/ai/providers";
 import {
   chatAssistantResponseSchema,
   generatedInsightsResponseSchema,
@@ -28,38 +28,15 @@ class AIParseError extends Error {
   }
 }
 
-const extractJsonObject = (raw: string): unknown => {
-  const cleaned = raw
-    .replace(/```json/gi, "")
-    .replace(/```/g, "")
-    .trim();
-
-  const firstBrace = cleaned.indexOf("{");
-  const lastBrace = cleaned.lastIndexOf("}");
-
-  if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
-    throw new AIParseError("Model response did not contain a JSON object.", "INVALID_AI_RESPONSE");
-  }
-
-  const jsonChunk = cleaned.slice(firstBrace, lastBrace + 1);
-
-  try {
-    return JSON.parse(jsonChunk);
-  } catch {
-    throw new AIParseError("Unable to parse JSON from model response.", "INVALID_AI_RESPONSE");
-  }
-};
-
 const intentResponseSchema = z
   .object({
     intent: z.enum(["transaction", "chat", "insight", "command"]),
   })
   .strict();
 
-export const generateJsonFromAI = async (prompt: string, provider: AIProvider = "gemini"): Promise<unknown> => {
+const requestJsonFromAI = async (prompt: string): Promise<unknown> => {
   try {
-    const modelText = provider === "groq" ? await generateWithGroq(prompt) : await generateWithGemini(prompt);
-    return extractJsonObject(modelText);
+    return await generateJsonFromAI(prompt);
   } catch (error) {
     if (error instanceof AIParseError) {
       throw error;
@@ -71,9 +48,9 @@ export const generateJsonFromAI = async (prompt: string, provider: AIProvider = 
       "code" in error &&
       typeof (error as { code: unknown }).code === "string"
         ? (error as { code: string }).code
-        : "AI_REQUEST_FAILED";
+        : "AI_SERVICE_UNAVAILABLE";
 
-    const message = error instanceof Error ? error.message : "AI request failed. Please try again.";
+    const message = error instanceof Error ? error.message : "AI service temporarily unavailable.";
     throw new AIParseError(message, code);
   }
 };
@@ -81,7 +58,7 @@ export const generateJsonFromAI = async (prompt: string, provider: AIProvider = 
 export const detectIntent = async (input: string): Promise<AssistantIntent> => {
   try {
     const prompt = buildIntentDetectionPrompt(input);
-    const extractedJson = await generateJsonFromAI(prompt, "gemini");
+    const extractedJson = await requestJsonFromAI(prompt);
     const validated = intentResponseSchema.safeParse(extractedJson);
 
     if (!validated.success) {
@@ -99,7 +76,7 @@ export const parseTransactionWithAI = async (
   language: SupportedLanguage,
 ): Promise<z.infer<typeof TransactionParseSchema>> => {
   const prompt = buildParseTransactionPrompt(input, language);
-  const extractedJson = await generateJsonFromAI(prompt, "gemini");
+  const extractedJson = await requestJsonFromAI(prompt);
   const validated = TransactionParseSchema.safeParse(extractedJson);
 
   if (!validated.success) {
@@ -113,7 +90,7 @@ export const generateInsightsWithAI = async (
   stats: InsightStatsPayload,
 ): Promise<z.infer<typeof generatedInsightsResponseSchema>> => {
   const prompt = buildInsightsPrompt(stats);
-  const extractedJson = await generateJsonFromAI(prompt, "gemini");
+  const extractedJson = await requestJsonFromAI(prompt);
   const validated = generatedInsightsResponseSchema.safeParse(extractedJson);
 
   if (!validated.success) {
@@ -131,7 +108,7 @@ export const generateChatReply = async (
   context: ChatContextPayload,
 ): Promise<string> => {
   const prompt = buildFinancialChatPrompt({ message, language, context });
-  const extractedJson = await generateJsonFromAI(prompt, "gemini");
+  const extractedJson = await requestJsonFromAI(prompt);
   const validated = chatAssistantResponseSchema.safeParse(extractedJson);
 
   if (!validated.success) {
