@@ -173,7 +173,16 @@ async function generateWithGroq(prompt: string): Promise<string> {
       },
       body: JSON.stringify({
         model: GROQ_MODEL,
-        messages: [{ role: "user", content: prompt }],
+        messages: [
+          {
+            role: "system",
+            content: "You are a financial transaction parser. Always return ONLY valid JSON.",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
         temperature: 0.1,
       }),
     });
@@ -197,11 +206,12 @@ async function generateWithGroq(prompt: string): Promise<string> {
       };
     }>;
   };
+  console.log("Groq response:", data);
 
   const text = data?.choices?.[0]?.message?.content?.trim();
 
   if (!text) {
-    throw new JsonExtractionError("Groq returned an empty response.");
+    throw new JsonExtractionError("Groq returned an empty response");
   }
 
   return text;

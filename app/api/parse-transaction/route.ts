@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
-import { AIParseError, detectIntent, parseTransactionWithAI } from "@/lib/ai/gemini";
+import { AIParseError, detectIntent, normalizeTranscript, parseTransactionWithAI } from "@/lib/ai/gemini";
 import { parseTransactionInputSchema, parsedTransactionSchema, TransactionParseSchema } from "@/lib/ai/schemas";
 import { getServerAuthSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
@@ -123,7 +123,8 @@ export async function POST(request: Request) {
 
     switch (intent) {
       case "transaction": {
-        const aiResult = await parseTransactionWithAI(parsed.data.rawInput, language);
+        const cleaned = await normalizeTranscript(parsed.data.rawInput);
+        const aiResult = await parseTransactionWithAI(cleaned, language);
         const validatedAIResult = TransactionParseSchema.safeParse(aiResult);
 
         if (!validatedAIResult.success) {

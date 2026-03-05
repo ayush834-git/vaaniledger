@@ -19,6 +19,7 @@ Rules:
 3) category should be short and business-relevant (Sales, Rent, Utilities, Inventory, Transport, Misc).
 4) description should be concise and human-readable.
 5) Do not add any extra keys.
+6) Interpret misspelled or misheard words when extracting transactions.
 
 Examples:
 Input: "Paid 1200 rent"

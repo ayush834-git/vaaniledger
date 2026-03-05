@@ -95,6 +95,7 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
   const shouldRestartRef = useRef(false);
   const finalTranscriptRef = useRef("");
   const liveTranscriptRef = useRef("");
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const language = useMemo(() => resolveSupportedLanguage(i18n.language), [i18n.language]);
   const speechLocale = useMemo(() => mapToSpeechLocale(language), [language]);
@@ -105,6 +106,25 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
       setErrorMessage(null);
     }
   }, [savedSignal]);
+
+  const clearSilenceTimer = useCallback(() => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+  }, []);
+
+  const armSilenceTimer = useCallback(() => {
+    clearSilenceTimer();
+    silenceTimerRef.current = setTimeout(() => {
+      if (!recognitionRef.current || !shouldRestartRef.current || isProcessing) {
+        return;
+      }
+      shouldRestartRef.current = false;
+      submittedOnStopRef.current = true;
+      recognitionRef.current.stop();
+    }, 2000);
+  }, [clearSilenceTimer, isProcessing]);
 
   const parseTranscript = useCallback(
     async (value: string) => {
@@ -202,9 +222,11 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
       const merged = `${finalTranscriptRef.current} ${interim}`.trim();
       liveTranscriptRef.current = merged;
       setTranscript(merged);
+      armSilenceTimer();
     };
 
     recognition.onerror = (event) => {
+      clearSilenceTimer();
       shouldRestartRef.current = false;
       submittedOnStopRef.current = false;
       setIsRecording(false);
@@ -217,6 +239,7 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
       if (shouldRestartRef.current) {
         try {
           recognition.start();
+          armSilenceTimer();
           return;
         } catch {
           shouldRestartRef.current = false;
@@ -227,6 +250,7 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
       }
 
       setIsRecording(false);
+      clearSilenceTimer();
       if (!submittedOnStopRef.current) {
         return;
       }
@@ -237,10 +261,11 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
     recognitionRef.current = recognition;
 
     return () => {
+      clearSilenceTimer();
       recognition.stop();
       recognitionRef.current = null;
     };
-  }, [parseTranscript, speechLocale]);
+  }, [armSilenceTimer, clearSilenceTimer, parseTranscript, speechLocale]);
 
   const onMicClick = () => {
     if (!isSupported || !recognitionRef.current || isProcessing) {
@@ -248,6 +273,7 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
     }
 
     if (isRecording) {
+      clearSilenceTimer();
       shouldRestartRef.current = false;
       submittedOnStopRef.current = true;
       recognitionRef.current.stop();
@@ -265,8 +291,10 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
       shouldRestartRef.current = true;
       setIsRecording(true);
       recognitionRef.current.start();
+      armSilenceTimer();
     } catch {
       setIsRecording(false);
+      clearSilenceTimer();
       shouldRestartRef.current = false;
       submittedOnStopRef.current = false;
       setErrorMessage("Unable to start microphone.");

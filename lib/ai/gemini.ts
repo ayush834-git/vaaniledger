@@ -86,6 +86,49 @@ export const parseTransactionWithAI = async (
   return validated.data;
 };
 
+export const normalizeTranscript = async (input: string): Promise<string> => {
+  const prompt = `You are correcting speech recognition errors.
+
+The input may contain phonetic mistakes.
+
+Correct the sentence into clear natural English describing a financial transaction.
+
+Examples:
+
+ice paint 200 groceries
+→ I spent 200 on groceries
+
+sell 500 good
+→ I sold goods worth 500
+
+Return ONLY the corrected sentence.
+
+Input:
+${JSON.stringify(input)}`;
+
+  const normalized = await requestJsonFromAI(`
+Return ONLY valid JSON:
+{
+  "text": "corrected sentence"
+}
+
+${prompt}
+`);
+
+  const schema = z
+    .object({
+      text: z.string().min(1),
+    })
+    .strict();
+
+  const parsed = schema.safeParse(normalized);
+  if (!parsed.success) {
+    return input;
+  }
+
+  return parsed.data.text.trim() || input;
+};
+
 export const generateInsightsWithAI = async (
   stats: InsightStatsPayload,
 ): Promise<z.infer<typeof generatedInsightsResponseSchema>> => {
