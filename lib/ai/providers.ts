@@ -44,16 +44,6 @@ const geminiResponseSchema = z.object({
     .optional(),
 });
 
-const groqResponseSchema = z.object({
-  choices: z.array(
-    z.object({
-      message: z.object({
-        content: z.string().nullable().optional(),
-      }),
-    }),
-  ),
-});
-
 const sleep = async (ms: number): Promise<void> => {
   await new Promise((resolve) => setTimeout(resolve, ms));
 };
@@ -169,7 +159,9 @@ async function generateWithGemini(prompt: string): Promise<string> {
 }
 
 async function generateWithGroq(prompt: string): Promise<string> {
-  const apiKey = getApiKey(process.env.GROQ_API_KEY, "GROQ_API_KEY");
+  if (!process.env.GROQ_API_KEY) {
+    throw new Error("Missing GROQ_API_KEY");
+  }
 
   let response: Response;
   try {
@@ -177,16 +169,11 @@ async function generateWithGroq(prompt: string): Promise<string> {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
       },
       body: JSON.stringify({
         model: GROQ_MODEL,
-        messages: [
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
+        messages: [{ role: "user", content: prompt }],
         temperature: 0.1,
       }),
     });
@@ -198,20 +185,20 @@ async function generateWithGroq(prompt: string): Promise<string> {
   }
 
   if (!response.ok) {
-    const parsedError = await parseErrorBody(response);
-    console.error("Groq API request failed", {
-      status: response.status,
-      statusText: response.statusText,
-      model: GROQ_MODEL,
-      errorMessage: parsedError.message,
-      errorBody: parsedError.raw,
-    });
-    throw new ProviderRequestError(parsedError.message, "AI_REQUEST_FAILED");
+    const errorText = await response.text();
+    console.error("Groq error:", errorText);
+    throw new ProviderRequestError("AI service temporarily unavailable.", "AI_REQUEST_FAILED");
   }
 
-  const responseJson = await response.json();
-  const parsed = groqResponseSchema.safeParse(responseJson);
-  const text = parsed.success ? parsed.data.choices[0]?.message.content?.trim() : "";
+  const data = (await response.json()) as {
+    choices?: Array<{
+      message?: {
+        content?: string | null;
+      };
+    }>;
+  };
+
+  const text = data?.choices?.[0]?.message?.content?.trim();
 
   if (!text) {
     throw new JsonExtractionError("Groq returned an empty response.");
@@ -227,6 +214,7 @@ const resolveConfiguredProvider = (): AIProvider => {
 
 export async function generateJsonFromAI(prompt: string): Promise<unknown> {
   const provider = resolveConfiguredProvider();
+  console.log("AI Provider:", process.env.AI_PROVIDER);
 
   try {
     if (provider === "groq") {
