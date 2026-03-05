@@ -23,8 +23,7 @@ class AIParseError extends Error {
     this.name = "AIParseError";
   }
 }
-
-const GEMINI_MODEL = "gemini-1.5-flash";
+const GEMINI_MODEL = "gemini-1.5-flash-latest";
 
 const GEMINI_ENDPOINT =
   `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
