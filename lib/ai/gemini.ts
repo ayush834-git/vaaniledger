@@ -111,29 +111,6 @@ const intentResponseSchema = z
   })
   .strict();
 
-const fallbackDetectIntent = (input: string): AssistantIntent => {
-  const normalized = input.toLowerCase().trim();
-
-  const commandPattern = /\b(delete|remove|undo|revert|cancel|edit|update)\b/;
-  if (commandPattern.test(normalized)) {
-    return "command";
-  }
-
-  const insightPattern = /\b(summary|insight|trend|spend|spent|expense|income|profit|report|week|month)\b/;
-  if (normalized.includes("?") || insightPattern.test(normalized)) {
-    return "insight";
-  }
-
-  const transactionPattern =
-    /\b(spent|paid|bought|purchase|received|earned|sold|income|expense|rent|salary|groceries|fuel|bill)\b/;
-  const hasAmount = /\d+/.test(normalized);
-  if (transactionPattern.test(normalized) || hasAmount) {
-    return "transaction";
-  }
-
-  return "chat";
-};
-
 const generateJsonFromGemini = async (prompt: string): Promise<unknown> => {
   const apiKey = getGeminiApiKey();
 
@@ -182,12 +159,12 @@ export const detectIntent = async (input: string): Promise<AssistantIntent> => {
     const validated = intentResponseSchema.safeParse(extractedJson);
 
     if (!validated.success) {
-      return fallbackDetectIntent(input);
+      return "chat";
     }
 
     return validated.data.intent;
   } catch {
-    return fallbackDetectIntent(input);
+    return "chat";
   }
 };
 

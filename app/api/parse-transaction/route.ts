@@ -181,8 +181,11 @@ export async function POST(request: Request) {
       }
 
       default: {
-        return NextResponse.json(parseErrorResponse("Unable to resolve input intent.", "INTENT_ERROR"), {
-          status: 422,
+        const reply = await chatWithFinanceAssistant(userId, parsed.data.rawInput, language);
+        return NextResponse.json({
+          success: true,
+          intent: "chat",
+          reply,
         });
       }
     }
