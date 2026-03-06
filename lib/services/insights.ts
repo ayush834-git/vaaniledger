@@ -13,16 +13,18 @@ const toNumber = (value: Prisma.Decimal): number => Number(value);
 const mapInsightRecord = (input: {
   id: string;
   userId: string;
+  type: string;
   message: string;
-  triggerCount: number;
-  createdAt: Date;
+  dismissed: boolean;
+  generatedAt: Date;
 }): InsightRecord => {
   return {
     id: input.id,
     userId: input.userId,
+    type: input.type,
     message: input.message,
-    triggerCount: input.triggerCount,
-    createdAt: input.createdAt.toISOString(),
+    dismissed: input.dismissed,
+    generatedAt: input.generatedAt.toISOString(),
   };
 };
 
@@ -107,15 +109,19 @@ export const generateInsights = async (userId: string): Promise<InsightRecord[]>
       prisma.insight.create({
         data: {
           userId,
-          message: `[${item.severity}|${item.type}] ${item.text}`,
-          triggerCount: recentTransactions.length,
+          message: item.text,
+          type: item.type === "spending_trend" ? "SPENDING_SPIKE" 
+              : item.type === "profitability" ? "CASHFLOW" 
+              : item.type === "category_alert" ? "TOP_CATEGORY" 
+              : "CASHFLOW",
         },
         select: {
           id: true,
           userId: true,
+          type: true,
           message: true,
-          triggerCount: true,
-          createdAt: true,
+          dismissed: true,
+          generatedAt: true,
         },
       }),
     ),

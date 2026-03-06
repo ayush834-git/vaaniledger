@@ -3,16 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, useMotionValue, animate, AnimatePresence, type Variants } from "framer-motion";
 import { useTranslation } from "react-i18next";
-import { MessageCircle, TrendingUp, TrendingDown, IndianRupee } from "lucide-react";
+import { MessageCircle, TrendingUp, TrendingDown, IndianRupee, X } from "lucide-react";
 
 import { ChatPanel } from "@/components/chat/ChatPanel";
-import { TopCategoriesChart } from "@/components/charts/TopCategoriesChart";
+import { ExpensePieChart } from "@/components/charts/ExpensePieChart";
 import { IncomeExpenseBarChart } from "@/components/charts/IncomeExpenseBarChart";
 import { ProfitLineChart } from "@/components/charts/ProfitLineChart";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { useTransactions } from "@/lib/hooks/useTransactions";
-import type { TransactionRecord } from "@/lib/types/domain";
+import type { TransactionRecord, BudgetGoalRecord } from "@/lib/types/domain";
 import { formatDateTime } from "@/lib/utils/date";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -66,11 +67,54 @@ const itemVariants: Variants = {
   show: { opacity: 1, y: 0 },
 };
 
+interface InsightUI {
+  id: string;
+  type: string;
+  message: string;
+  dismissed: boolean;
+}
+
+const getInsightColor = (type: string) => {
+  if (type === "SPENDING_SPIKE") return "border-l-accent";
+  if (type === "CASHFLOW") return "border-l-income";
+  return "border-l-expense";
+};
+
 export default function DashboardPage() {
   const { t } = useTranslation();
   const { status, isAuthenticated } = useRequireAuth();
   const { transactions, isLoading } = useTransactions();
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [pieTab, setPieTab] = useState<"expense" | "income">("expense");
+  const [insights, setInsights] = useState<InsightUI[]>([]);
+  const [goals, setGoals] = useState<BudgetGoalRecord[]>([]);
+
+  useEffect(() => {
+    if (isAuthenticated && !isLoading) {
+      fetch("/api/insights")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.ok && data.insights) {
+            setInsights(data.insights.filter((i: InsightUI) => !i.dismissed));
+          }
+        });
+
+      fetch("/api/goals")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.ok && data.data) {
+            setGoals(data.data);
+          }
+        });
+
+      fetch("/api/transactions/process-recurring").catch(console.error);
+    }
+  }, [isAuthenticated, isLoading]);
+
+  const handleDismiss = async (id: string) => {
+    setInsights((prev) => prev.filter((i) => i.id !== id));
+    await fetch(`/api/insights/${id}/dismiss`, { method: "POST" });
+  };
 
   const todaySummary = useMemo(() => {
     const start = new Date(); start.setHours(0, 0, 0, 0);
@@ -100,9 +144,26 @@ export default function DashboardPage() {
       .slice(0, 6);
   }, [transactions]);
 
+  const pieData = useMemo(() => {
+    return topCategoriesData.filter((d) => d.type === pieTab).map((d) => ({ name: d.name, value: d.value }));
+  }, [topCategoriesData, pieTab]);
+
   const incomeExpenseByDay = useMemo(() => buildLast7DaysIncomeExpense(transactions), [transactions]);
   const profitTrend = useMemo(() => incomeExpenseByDay.map((r) => ({ day: r.day, value: r.income - r.expense })), [incomeExpenseByDay]);
   const latestTransaction = transactions[0] ?? null;
+
+  const currentMonthSpendingByCategory = useMemo(() => {
+    const now = new Date();
+    const map: Record<string, number> = {};
+    for (const tx of transactions) {
+      if (tx.type !== "expense") continue;
+      const d = new Date(tx.createdAt);
+      if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) {
+        map[tx.category] = (map[tx.category] || 0) + Number(tx.amount);
+      }
+    }
+    return map;
+  }, [transactions]);
 
   if ((status === "loading" || isLoading) && !isAuthenticated) {
     return (
@@ -136,14 +197,84 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <motion.div variants={itemVariants} className="grid gap-4 lg:grid-cols-3">
-        <TopCategoriesChart data={topCategoriesData} />
-        <IncomeExpenseBarChart data={incomeExpenseByDay} />
-        <ProfitLineChart data={profitTrend} />
+      {insights.length > 0 && (
+        <motion.div variants={itemVariants} className="space-y-3">
+          <AnimatePresence mode="popLayout">
+            {insights.map((insight) => (
+              <motion.div
+                key={insight.id}
+                initial={{ opacity: 0, height: 0, scale: 0.95 }}
+                animate={{ opacity: 1, height: "auto", scale: 1 }}
+                exit={{ opacity: 0, height: 0, scale: 0.95, overflow: "hidden" }}
+                transition={{ duration: 0.2 }}
+              >
+                <Card className={`border-l-4 ${getInsightColor(insight.type)} flex items-center justify-between p-4 py-3 shadow-soft`}>
+                  <p className="text-sm font-medium text-textPrimary">{insight.message}</p>
+                  <button
+                    onClick={() => handleDismiss(insight.id)}
+                    className="ml-4 shrink-0 rounded-lg p-1 text-textSecondary hover:bg-surface hover:text-expense transition"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </Card>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </motion.div>
+      )}
+
+      {goals.length > 0 && (
+        <motion.div variants={itemVariants}>
+          <Card className="min-h-[120px]">
+            <h3 className="text-lg font-semibold text-textPrimary flex items-center gap-2 mb-4">
+              <div className="h-2 w-2 rounded-full bg-amber-500" />
+              Budget Status
+            </h3>
+            <div className="space-y-4">
+              {goals.map((goal) => {
+                const spent = currentMonthSpendingByCategory[goal.category] || 0;
+                const progress = Math.min((spent / goal.amount) * 100, 100);
+                const colorClass = progress > 90 ? "bg-expense" : progress > 70 ? "bg-amber-500" : "bg-income";
+                return (
+                  <div key={goal.id}>
+                    <div className="flex justify-between items-center mb-1 text-sm">
+                      <span className="font-medium text-textPrimary">{goal.category}</span>
+                      <span className="text-textSecondary">
+                        {Math.round(progress)}% ({spent.toLocaleString("en-IN", { style: "currency", currency: "INR" })} / {goal.amount.toLocaleString("en-IN", { style: "currency", currency: "INR" })})
+                      </span>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-accent/10">
+                      <div className={`h-full rounded-full transition-all ${colorClass}`} style={{ width: `${progress}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        </motion.div>
+      )}
+
+      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-12 gap-4">
+        <div className="col-span-1 md:col-span-5 relative flex flex-col min-h-[320px] [&_>_div]:flex-1 [&_>_div]:flex [&_>_div]:flex-col">
+          <div className="absolute right-4 top-4 z-10 flex gap-2">
+            <Button variant={pieTab === "expense" ? "primary" : "ghost"} onClick={() => setPieTab("expense")} className="px-3 py-1 h-auto text-xs font-semibold">Expense</Button>
+            <Button variant={pieTab === "income" ? "primary" : "ghost"} onClick={() => setPieTab("income")} className="px-3 py-1 h-auto text-xs font-semibold">Income</Button>
+          </div>
+          <ExpensePieChart data={pieData} />
+        </div>
+        <div className="col-span-1 md:col-span-7 flex flex-col min-h-[320px] [&_>_div]:flex-1 [&_>_div]:flex [&_>_div]:flex-col">
+          <IncomeExpenseBarChart data={incomeExpenseByDay} />
+        </div>
       </motion.div>
 
-      <motion.div variants={itemVariants} className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-        <Card>
+      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-12 gap-4">
+        <div className="col-span-1 md:col-span-12 flex flex-col min-h-[260px] [&_>_div]:flex-1 [&_>_div]:flex [&_>_div]:flex-col">
+          <ProfitLineChart data={profitTrend} />
+        </div>
+      </motion.div>
+
+      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-12 gap-4">
+        <Card className="col-span-1 md:col-span-7 min-h-[200px]">
           <h3 className="text-lg font-semibold text-textPrimary flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-accent" />{t("dashboard.insights")}
           </h3>
@@ -169,7 +300,7 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        <Card className="flex flex-col justify-between">
+        <Card className="col-span-1 md:col-span-5 flex flex-col justify-between min-h-[200px]">
           <div>
             <h3 className="text-lg font-semibold text-textPrimary flex items-center gap-2">
               <div className="h-2 w-2 rounded-full bg-secondary" />{t("dashboard.chat")}

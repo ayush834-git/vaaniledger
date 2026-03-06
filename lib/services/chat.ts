@@ -32,9 +32,10 @@ export const chatWithFinanceAssistant = async (
     prisma.insight.findMany({
       where: {
         userId,
+        dismissed: false,
       },
       orderBy: {
-        createdAt: "desc",
+        generatedAt: "desc",
       },
       take: 5,
       select: {
@@ -64,6 +65,19 @@ export const chatWithFinanceAssistant = async (
       return acc;
     }, {});
 
+  const categoryBreakdownMap: Record<string, { category: string; totalExpense: number; totalIncome: number; txCount: number }> = {};
+  
+  transactions.forEach((tx) => {
+    const amount = toNumber(tx.amount);
+    if (!categoryBreakdownMap[tx.category]) {
+      categoryBreakdownMap[tx.category] = { category: tx.category, totalExpense: 0, totalIncome: 0, txCount: 0 };
+    }
+    const cat = categoryBreakdownMap[tx.category];
+    cat.txCount++;
+    if (tx.type === "expense") cat.totalExpense += amount;
+    else cat.totalIncome += amount;
+  });
+
   const topCategories = Object.entries(categoryTotals)
     .map(([category, amount]) => ({ category, amount }))
     .sort((a, b) => b.amount - a.amount)
@@ -78,6 +92,11 @@ export const chatWithFinanceAssistant = async (
     topCategories,
     recentInsights: recentInsights.map((insight) => insight.message),
     transactionCount: transactions.length,
+    categoryBreakdown: Object.values(categoryBreakdownMap),
+    dateRange: {
+      from: thirtyDaysAgo.toISOString().split("T")[0],
+      to: new Date().toISOString().split("T")[0],
+    },
   };
 
   return generateChatReply(message, language, context);

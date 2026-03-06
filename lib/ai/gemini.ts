@@ -31,6 +31,7 @@ class AIParseError extends Error {
 const intentResponseSchema = z
   .object({
     intent: z.enum(["transaction", "chat", "insight", "command"]),
+    confidence: z.number().min(0).max(1),
   })
   .strict();
 
@@ -57,12 +58,20 @@ const requestJsonFromAI = async (prompt: string): Promise<unknown> => {
 
 export const detectIntent = async (input: string): Promise<AssistantIntent> => {
   try {
+    if (/\d+/.test(input) && !input.trim().endsWith("?")) {
+      return "transaction";
+    }
+
     const prompt = buildIntentDetectionPrompt(input);
     const extractedJson = await requestJsonFromAI(prompt);
     const validated = intentResponseSchema.safeParse(extractedJson);
 
     if (!validated.success) {
       return "chat";
+    }
+
+    if (validated.data.confidence < 0.70) {
+      return "transaction";
     }
 
     return validated.data.intent;

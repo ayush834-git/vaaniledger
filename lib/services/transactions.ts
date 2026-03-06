@@ -27,6 +27,8 @@ const mapTransactionRecord = (input: {
   description: string | null;
   rawInput: string | null;
   inputLanguage: string | null;
+  recurrence: string;
+  nextDueAt: Date | null;
   createdAt: Date;
 }): TransactionRecord => {
   return {
@@ -38,6 +40,8 @@ const mapTransactionRecord = (input: {
     description: input.description,
     rawInput: input.rawInput,
     inputLanguage: toSupportedLanguage(input.inputLanguage),
+    recurrence: input.recurrence,
+    nextDueAt: input.nextDueAt?.toISOString() ?? null,
     createdAt: input.createdAt.toISOString(),
   };
 };
@@ -113,6 +117,8 @@ export const getTransactions = async (
         description: true,
         rawInput: true,
         inputLanguage: true,
+        recurrence: true,
+        nextDueAt: true,
         createdAt: true,
       },
     }),
@@ -142,6 +148,8 @@ export const createTransaction = async (
       description: transactionData.description ?? null,
       rawInput: transactionData.rawInput ?? null,
       inputLanguage: transactionData.inputLanguage ?? null,
+      recurrence: transactionData.recurrence ?? "NONE",
+      nextDueAt: transactionData.nextDueAt ?? null,
     },
     select: {
       id: true,
@@ -152,6 +160,8 @@ export const createTransaction = async (
       description: true,
       rawInput: true,
       inputLanguage: true,
+      recurrence: true,
+      nextDueAt: true,
       createdAt: true,
     },
   });

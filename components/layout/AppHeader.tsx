@@ -9,6 +9,7 @@ import { useSyncExternalStore } from "react";
 
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
 import { isGuestMode, disableGuestMode } from "@/lib/auth/guestMode";
+import { useMicContext } from "@/lib/context/MicContext";
 
 const NAV_ITEMS = [
   { href: "/", labelKey: "nav.home" },
@@ -28,6 +29,7 @@ export const AppHeader = () => {
   const { status, data } = useSession();
   const { t } = useTranslation();
   const guest = useSyncExternalStore(subscribeGuest, isGuestMode, () => false);
+  const { isWakeWordListening } = useMicContext();
 
   const handleGuestSignIn = () => {
     disableGuestMode();
@@ -53,8 +55,15 @@ export const AppHeader = () => {
       <div className="flex items-center justify-between gap-4">
         {/* Logo */}
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10 border border-accent/20">
-            <span className="text-xs font-bold font-mono text-accent">VL</span>
+          <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10 border border-accent/20">
+            {isWakeWordListening && (
+              <motion.div
+                className="absolute -inset-1 rounded-lg border-2 border-accent/50"
+                animate={{ opacity: [0, 1, 0] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              />
+            )}
+            <span className="text-xs font-bold font-mono text-accent relative z-10">VL</span>
           </div>
           <div>
             <span className="font-display text-lg font-bold text-accent tracking-tight">VaaniLedger</span>

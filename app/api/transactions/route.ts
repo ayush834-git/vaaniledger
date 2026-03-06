@@ -26,6 +26,7 @@ const createTransactionSchema = z.object({
   description: z.string().optional(),
   rawInput: z.string().optional(),
   inputLanguage: z.enum(["en", "hi", "te", "ta"]).optional(),
+  recurrence: z.enum(["NONE", "DAILY", "WEEKLY", "MONTHLY"]).optional(),
 });
 
 import { resolveUserId } from "@/lib/auth/resolveUserId";
@@ -99,7 +100,25 @@ export async function POST(request: Request) {
     }
 
     const userId = await resolveUserId();
-    const transaction = await createTransaction(userId, parsed.data);
+    const data = parsed.data;
+
+    let nextDueAt: Date | null = null;
+    if (data.recurrence && data.recurrence !== "NONE") {
+      const now = new Date();
+      if (data.recurrence === "DAILY") {
+        now.setDate(now.getDate() + 1);
+      } else if (data.recurrence === "WEEKLY") {
+        now.setDate(now.getDate() + 7);
+      } else if (data.recurrence === "MONTHLY") {
+        now.setMonth(now.getMonth() + 1);
+      }
+      nextDueAt = now;
+    }
+
+    const transaction = await createTransaction(userId, {
+      ...data,
+      nextDueAt,
+    });
 
     const payload: CreateTransactionResponse = {
       ok: true,

@@ -106,6 +106,13 @@ export interface ChatContextPayload {
   }>;
   recentInsights: string[];
   transactionCount: number;
+  categoryBreakdown: Array<{
+    category: string;
+    totalExpense: number;
+    totalIncome: number;
+    txCount: number;
+  }>;
+  dateRange: { from: string; to: string };
 }
 
 const chatLanguageHint: Record<SupportedLanguage, string> = {
@@ -124,6 +131,10 @@ export const buildFinancialChatPrompt = ({
   language: SupportedLanguage;
   context: ChatContextPayload;
 }): string => {
+  const categoryStr = context.categoryBreakdown.map(c => 
+    `  ${c.category}: ₹${c.totalExpense} expense, ₹${c.totalIncome} income (${c.txCount} transactions)`
+  ).join('\n');
+
   return `
 You are VaaniLedger's financial assistant.
 Answer the user's question using ONLY the provided financial context.
@@ -139,8 +150,11 @@ Return ONLY valid JSON with this exact format:
 User question:
 ${JSON.stringify(message)}
 
+Category Breakdown (from ${context.dateRange.from} to ${context.dateRange.to}):
+${categoryStr}
+
 Financial context:
-${JSON.stringify(context)}
+${JSON.stringify({ ...context, categoryBreakdown: undefined, dateRange: undefined })}
 `.trim();
 };
 
@@ -151,24 +165,29 @@ Classify the user input into exactly one intent.
 
 Return ONLY valid JSON with this exact format:
 {
-  "intent": "transaction" | "chat" | "insight" | "command"
+  "intent": "transaction" | "chat" | "insight" | "command",
+  "confidence": number
 }
 
 Intent rules:
 1) transaction: user is recording an income or expense.
-2) chat: greetings/small talk/general casual conversation.
-3) insight: user asks financial analysis questions (spending, profit, trends, summary).
+2) chat: questions about balances, past spending, and general casual conversation.
+3) insight: user specifically asks for deep financial analysis (trends, summary, reports).
 4) command: user asks to modify existing records (delete, undo, remove, edit).
 
 Examples:
-- "spent 200 on groceries" => {"intent":"transaction"}
-- "received 500 from client" => {"intent":"transaction"}
-- "hello" => {"intent":"chat"}
-- "how are you" => {"intent":"chat"}
-- "how much did I spend this week" => {"intent":"insight"}
-- "show my expenses" => {"intent":"insight"}
-- "delete last transaction" => {"intent":"command"}
-- "undo previous entry" => {"intent":"command"}
+- Input: "kal 200 ka doodh liya" → intent: "transaction"
+- Input: "500 rent" → intent: "transaction"
+- Input: "kitna bacha?" → intent: "chat"
+- Input: "delete last entry" → intent: "command"
+- Input: "show me this week summary" → intent: "insight"
+- Input: "ninna 1000 karchu" → intent: "transaction"
+- Input: "aaj ka hisaab batao" → intent: "insight"
+- Input: "hello bhai" → intent: "chat"
+- Input: "received 5000 from client" → intent: "transaction"
+- Input: "undo previous record" → intent: "command"
+- Input: "kharcha kaisa chal raha hai" → intent: "insight"
+- Input: "tea 20" → intent: "transaction"
 
 User input:
 ${JSON.stringify(input)}

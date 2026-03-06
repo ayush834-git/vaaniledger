@@ -8,6 +8,8 @@ import { Mic, MicOff, Loader2 } from "lucide-react";
 import type { ParsedTransactionDraft, SupportedLanguage } from "@/lib/types/domain";
 import { refreshStoredTransactionsFromApi } from "@/lib/utils/clientTransactions";
 import { toUserFacingError } from "@/lib/utils/errorMessages";
+import { useSmartVAD } from "@/lib/hooks/useSmartVAD";
+import { useMicContext } from "@/lib/context/MicContext";
 
 type SpeechAlternative = { transcript: string };
 type SpeechResult = { isFinal: boolean; length: number; [index: number]: SpeechAlternative };
@@ -62,6 +64,15 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  const { energyLevel, startVAD, stopVAD } = useSmartVAD({
+    onSilenceDetected: () => {
+      if (!recognitionRef.current || !shouldRestartRef.current || isProcessing) return;
+      shouldRestartRef.current = false;
+      submittedOnStopRef.current = true;
+      recognitionRef.current.stop();
+    },
+  });
+
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const submittedOnStopRef = useRef(false);
   const shouldRestartRef = useRef(false);
@@ -72,6 +83,12 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
 
   const language = useMemo(() => resolveSupportedLanguage(i18n.language), [i18n.language]);
   const speechLocale = useMemo(() => mapToSpeechLocale(language), [language]);
+
+  const { setIsMainMicActive } = useMicContext();
+
+  useEffect(() => {
+    setIsMainMicActive(isRecording);
+  }, [isRecording, setIsMainMicActive]);
 
   useEffect(() => {
     if (savedSignal > 0) {
@@ -96,12 +113,28 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
 
   const parseTranscript = useCallback(
     async (value: string) => {
-      const rawInput = value.trim();
+      let rawInput = value.trim();
       if (!rawInput) { setErrorMessage(t("mic.notSupported")); return; }
       setIsProcessing(true);
       setErrorMessage(null);
       setSuccessMessage(null);
       try {
+        try {
+          const normRes = await fetch("/api/normalize-transcript", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rawInput }),
+          });
+          if (normRes.ok) {
+            const normData = await normRes.json();
+            if (typeof normData?.normalized === "string") {
+              rawInput = normData.normalized;
+            }
+          }
+        } catch {
+          // Fall through on error, use original rawInput
+        }
+
         const response = await fetch("/api/parse-transaction", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -109,7 +142,7 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
         });
         const payload = (await response.json()) as ParseResponse;
         if (!response.ok || payload.success === false) {
-          throw new Error(toUserFacingError(payload.error, { fallback: "Could not process your input." }));
+          throw new Error(toUserFacingError(payload.error, { fallback: t("mic.errorProcess") }));
         }
         if (payload.intent === "transaction" && payload.parsedTransaction) {
           onTransactionParsed?.(payload.parsedTransaction);
@@ -117,20 +150,20 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
         } else if (payload.reply) {
           setSuccessMessage(payload.reply);
         } else if (Array.isArray(payload.insights)) {
-          setSuccessMessage(`Generated ${payload.insights.length} insights`);
+          setSuccessMessage(t("mic.generatedInsights", { count: payload.insights.length }));
         } else if (payload.commandResult?.message) {
           if (payload.commandResult.deletedTransactionId) {
             await refreshStoredTransactionsFromApi().catch(() => undefined);
           }
           setSuccessMessage(payload.commandResult.message);
         } else {
-          setSuccessMessage("Request completed.");
+          setSuccessMessage(t("mic.requestCompleted"));
         }
         setTranscript("");
         liveTranscriptRef.current = "";
         finalTranscriptRef.current = "";
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : "Could not process your input.");
+        setErrorMessage(error instanceof Error ? error.message : t("mic.errorProcess"));
       } finally {
         setIsProcessing(false);
       }
@@ -190,7 +223,7 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
       submittedOnStopRef.current = false;
       setIsRecording(false);
       if (event.error !== "aborted") {
-        setErrorMessage("Speech recognition failed. Please try again.");
+        setErrorMessage(t("mic.recognitionFailed"));
       }
     };
 
@@ -211,7 +244,7 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
 
     recognitionRef.current = recognition;
     return () => { clearSilenceTimer(); recognition.stop(); recognitionRef.current = null; };
-  }, [armSilenceTimer, clearSilenceTimer, parseTranscript, speechLocale]);
+  }, [armSilenceTimer, clearSilenceTimer, parseTranscript, speechLocale, t]);
 
   const onMicClick = () => {
     if (!isSupported || !recognitionRef.current || isProcessing) return;
@@ -221,6 +254,7 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
       submittedOnStopRef.current = false;
       setIsRecording(false);
       try { recognitionRef.current.stop(); } catch {}
+      stopVAD();
       const input = finalTranscriptRef.current || liveTranscriptRef.current;
       if (input) {
         void parseTranscript(input);
@@ -241,12 +275,14 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
       setIsRecording(true);
       recognitionRef.current.start();
       armSilenceTimer();
+      startVAD();
     } catch {
       setIsRecording(false);
       clearSilenceTimer();
+      stopVAD();
       shouldRestartRef.current = false;
       submittedOnStopRef.current = false;
-      setErrorMessage("Unable to start microphone.");
+      setErrorMessage(t("mic.micError"));
     }
   };
 
@@ -267,6 +303,7 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
         </AnimatePresence>
 
         <motion.button
+          id="mic-button-trigger"
           onClick={onMicClick}
           disabled={!isSupported || isProcessing}
           animate={
@@ -295,9 +332,12 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
       <AnimatePresence>
         {isRecording && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="flex items-center gap-1">
-            {[0.4, 0.8, 1.2, 0.9, 0.5, 1.0, 0.6].map((h, i) => (
-              <motion.div key={i} className="w-1.5 rounded-full bg-expense" animate={{ scaleY: [h, h * 0.4, h * 1.3, h] }} transition={{ duration: 0.6, delay: i * 0.08, repeat: Infinity, ease: "easeInOut" }} style={{ height: 24, transformOrigin: "center" }} />
-            ))}
+            {[0.4, 0.8, 1.2, 0.9, 0.5, 1.0, 0.6].map((h, i) => {
+              const safeEnergy = Math.max(0.1, energyLevel);
+              return (
+                <motion.div key={i} className="w-1.5 rounded-full bg-expense" animate={{ height: 12 + safeEnergy * 40 * h }} transition={{ type: "tween", duration: 0.1 }} style={{ transformOrigin: "center", minHeight: 4 }} />
+              );
+            })}
           </motion.div>
         )}
       </AnimatePresence>

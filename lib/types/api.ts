@@ -4,6 +4,7 @@ import type {
   SupportedLanguage,
   TransactionRecord,
   TransactionType,
+  BudgetGoalRecord,
 } from "@/lib/types/domain";
 
 export interface ApiError {
@@ -91,6 +92,8 @@ export interface CreateTransactionRequest {
   description?: string;
   rawInput?: string;
   inputLanguage?: SupportedLanguage;
+  recurrence?: string;
+  nextDueAt?: Date | null;
 }
 
 export type TransactionsListResponse = ApiResponse<Paginated<TransactionRecord>>;
@@ -98,3 +101,6 @@ export type TransactionsListResponse = ApiResponse<Paginated<TransactionRecord>>
 export type CreateTransactionResponse = ApiResponse<TransactionRecord>;
 
 export type InsightsResponse = ApiResponse<InsightRecord[]>;
+
+export type GoalsResponse = ApiResponse<BudgetGoalRecord[]>;
+export type GoalResponse = ApiResponse<BudgetGoalRecord>;

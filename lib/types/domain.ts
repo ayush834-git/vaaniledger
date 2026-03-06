@@ -20,13 +20,24 @@ export interface TransactionRecord {
   description: string | null;
   rawInput: string | null;
   inputLanguage: SupportedLanguage | null;
+  recurrence: string;
+  nextDueAt: string | null;
   createdAt: string;
 }
 
 export interface InsightRecord {
   id: string;
   userId: string;
+  type: string;
   message: string;
-  triggerCount: number;
-  createdAt: string;
+  dismissed: boolean;
+  generatedAt: string;
+}
+
+export interface BudgetGoalRecord {
+  id: string;
+  userId: string;
+  category: string;
+  amount: number;
+  period: string;
 }

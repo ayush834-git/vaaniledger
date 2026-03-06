@@ -26,6 +26,7 @@ model User {
   sessions      Session[]
   transactions  Transaction[]
   insights      Insight[]
+  budgetGoals   BudgetGoal[]
 }
 
 model Transaction {
@@ -37,6 +38,8 @@ model Transaction {
   description   String?
   rawInput      String?
   inputLanguage String?
+  recurrence    String          @default("NONE") // NONE | DAILY | WEEKLY | MONTHLY
+  nextDueAt     DateTime?
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
@@ -48,16 +51,16 @@ model Transaction {
 }
 
 model Insight {
-  id           String   @id @default(uuid()) @db.Uuid
-  userId       String   @db.Uuid
-  message      String
-  triggerCount Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
+  id          String   @id @default(cuid())
+  userId      String   @db.Uuid
+  type        String   // SPENDING_SPIKE | LOW_INCOME | TOP_CATEGORY | CASHFLOW
+  message     String
+  dismissed   Boolean  @default(false)
+  generatedAt DateTime @default(now())
+  
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId, createdAt])
+  @@index([userId, generatedAt])
 }
 
 model Account {
@@ -97,4 +100,17 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model BudgetGoal {
+  id        String @id @default(cuid())
+  userId    String @db.Uuid
+  category  String
+  amount    Float
+  period    String @default("MONTHLY")
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, category, period])
+  @@index([userId])
 }

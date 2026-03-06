@@ -1,9 +1,10 @@
 "use client";
 
-import { KeyboardEvent, useMemo, useState } from "react";
+import { KeyboardEvent, useEffect, useMemo, useState, Suspense } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { Send, ArrowRight, X, Pencil } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { MicButtonPlaceholder } from "@/components/mic/MicButtonPlaceholder";
 import { Button } from "@/components/ui/Button";
@@ -41,7 +42,7 @@ const itemVariants: Variants = {
   show: { opacity: 1, y: 0 },
 };
 
-export default function HomePage() {
+function HomePageContent() {
   const { t, i18n } = useTranslation();
   const { status, isAuthenticated } = useRequireAuth();
   const { transactions, createTransactionRecord, refreshTransactions } = useTransactions();
@@ -53,6 +54,20 @@ export default function HomePage() {
   const [isSavingConfirmed, setIsSavingConfirmed] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [recurrence, setRecurrence] = useState("NONE");
+
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams?.get("mic") === "1") {
+      router.replace("/");
+      setTimeout(() => {
+        const trigger = document.getElementById("mic-button-trigger");
+        if (trigger) trigger.click();
+      }, 300);
+    }
+  }, [searchParams, router]);
 
   const language = useMemo(() => resolveSupportedLanguage(i18n.language), [i18n.language]);
   const recentTransactions = useMemo(() => transactions.slice(0, 5), [transactions]);
@@ -104,6 +119,7 @@ export default function HomePage() {
         amount: pendingTransaction.amount, type: pendingTransaction.type,
         category: pendingTransaction.category, description: pendingTransaction.description,
         rawInput: pendingTransaction.rawInput, inputLanguage: pendingTransaction.inputLanguage,
+        recurrence,
       });
       setPendingTransaction(null);
       if (pendingSource === "mic") setMicSavedSignal((prev) => prev + 1);
@@ -117,10 +133,12 @@ export default function HomePage() {
     if (!pendingTransaction) return;
     setManualInput(pendingTransaction.rawInput);
     setPendingTransaction(null); setPendingSource(null); setStatusMessage(null);
+    setRecurrence("NONE");
   };
 
   const onCancelParsedTransaction = () => {
     setPendingTransaction(null); setPendingSource(null); setStatusMessage(null);
+    setRecurrence("NONE");
   };
 
   const onMicParsedTransaction = (transaction: ParsedTransactionDraft) => {
@@ -179,6 +197,20 @@ export default function HomePage() {
                       <div className="flex justify-between"><span className="text-textSecondary">{t("home.type")}</span><span className={pendingTransaction.type === "income" ? "text-income font-medium" : "text-expense font-medium"}>{pendingTransaction.type}</span></div>
                       <div className="flex justify-between"><span className="text-textSecondary">{t("home.category")}</span><span className="text-textPrimary">{pendingTransaction.category}</span></div>
                       <div className="flex justify-between"><span className="text-textSecondary">{t("home.description")}</span><span className="text-textPrimary text-right max-w-[200px] truncate">{pendingTransaction.description}</span></div>
+                      
+                      <div className="flex justify-between items-center mt-1 pt-3 border-t border-accent/[0.08]">
+                        <span className="text-textSecondary">Repeat?</span>
+                        <select 
+                          value={recurrence} 
+                          onChange={(e) => setRecurrence(e.target.value)} 
+                          className="rounded-lg border border-accent/12 bg-white px-2 py-1 text-sm text-textPrimary outline-none focus:border-accent/40"
+                        >
+                          <option value="NONE">None</option>
+                          <option value="DAILY">Daily</option>
+                          <option value="WEEKLY">Weekly</option>
+                          <option value="MONTHLY">Monthly</option>
+                        </select>
+                      </div>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <Button type="button" onClick={() => void onConfirmParsedTransaction()} disabled={isSavingConfirmed}>{isSavingConfirmed ? t("home.saving") : t("home.confirmBtn")}</Button>
@@ -234,5 +266,13 @@ export default function HomePage() {
         </motion.div>
       </div>
     </motion.div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" />}>
+      <HomePageContent />
+    </Suspense>
   );
 }

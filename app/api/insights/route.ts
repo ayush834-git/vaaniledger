@@ -5,6 +5,8 @@ import { z } from "zod";
 import { resolveUserId } from "@/lib/auth/resolveUserId";
 import { AIParseError, generateInsights } from "@/lib/services/insights";
 
+import { prisma } from "@/lib/db/prisma";
+
 const buildError = (code: string, message: string) => ({
   ok: false,
   error: {
@@ -17,7 +19,28 @@ export async function GET() {
   try {
     const userId = await resolveUserId();
 
-    const insights = await generateInsights(userId);
+    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+    
+    // Check if we have insights in the last 6 hours
+    const recentInsights = await prisma.insight.findMany({
+      where: {
+        userId,
+        generatedAt: {
+          gte: sixHoursAgo,
+        },
+      },
+      orderBy: { generatedAt: 'desc' },
+    });
+
+    let insights;
+
+    if (recentInsights.length > 0) {
+      // Use cached
+      insights = recentInsights.map(r => ({ ...r, generatedAt: r.generatedAt.toISOString() }));
+    } else {
+      // Generate new insights
+      insights = await generateInsights(userId);
+    }
 
     return NextResponse.json({
       ok: true,

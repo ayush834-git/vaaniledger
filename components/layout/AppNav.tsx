@@ -10,6 +10,7 @@ const navItems = [
   { href: "/", labelKey: "nav.home" },
   { href: "/dashboard", labelKey: "nav.dashboard" },
   { href: "/ledger", labelKey: "nav.ledger" },
+  { href: "/goals", labelKey: "Goals" },
 ];
 
 export const AppNav = () => {
@@ -29,7 +30,7 @@ export const AppNav = () => {
               isActive ? "bg-accent text-bg" : "text-textSecondary hover:bg-white/10 hover:text-textPrimary",
             )}
           >
-            {t(item.labelKey)}
+            {item.labelKey === "Goals" ? "Goals" : t(item.labelKey)}
           </Link>
         );
       })}
