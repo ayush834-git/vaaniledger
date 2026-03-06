@@ -241,8 +241,24 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
 
     recognition.onend = () => {
       if (shouldRestartRef.current) {
-        try { recognition.start(); armSilenceTimerRef.current(); return; } catch {
+        try {
+          // Add a small delay to ensure the speech recognition has fully stopped before restarting
+          setTimeout(() => {
+            try {
+              if (shouldRestartRef.current && recognitionRef.current) {
+                recognitionRef.current.start();
+                armSilenceTimerRef.current();
+              }
+            } catch (e) {
+              shouldRestartRef.current = false;
+              submittedOnStopRef.current = false;
+              setIsRecording(false);
+            }
+          }, 100);
+          return;
+        } catch (e) {
           shouldRestartRef.current = false;
+          submittedOnStopRef.current = false;
           setIsRecording(false);
           return;
         }
@@ -285,7 +301,21 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
       submittedOnStopRef.current = false;
       shouldRestartRef.current = true;
       setIsRecording(true);
-      recognitionRef.current.start();
+      
+      // Wrap start in try-catch to handle immediate errors
+      try {
+        recognitionRef.current.start();
+      } catch (startErr) {
+        // If start fails immediately, reset state
+        shouldRestartRef.current = false;
+        submittedOnStopRef.current = false;
+        setIsRecording(false);
+        clearSilenceTimer();
+        stopVAD();
+        setErrorMessage(t("mic.micError"));
+        return;
+      }
+      
       armSilenceTimer();
       startVAD();
     } catch {
