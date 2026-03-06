@@ -1,3 +1,5 @@
+export const runtime = "nodejs";
+
 import { NextRequest, NextResponse } from "next/server";
 
 import PDFDocument from "pdfkit";
@@ -96,6 +98,7 @@ Keep it professional but concise.`;
         const buffers: Buffer[] = [];
         doc.on("data", buffers.push.bind(buffers));
         doc.on("end", () => resolve(Buffer.concat(buffers)));
+        doc.on("error", reject);
 
         // --- Page 1: Summary & Narrative ---
         doc.fontSize(24).font("Helvetica-Bold").text("VaaniLedger", { align: "center" });
@@ -199,7 +202,7 @@ Keep it professional but concise.`;
     const mm = String(month).padStart(2, "0");
     const filename = `vaaniledger-${year}-${mm}.pdf`;
 
-    return new NextResponse(pdfBuffer as unknown as BodyInit, {
+    return new Response(pdfBuffer as any, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",

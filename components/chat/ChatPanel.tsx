@@ -5,11 +5,25 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { X, Send, Mic, MicOff, Loader2, Volume2, VolumeX } from "lucide-react";
 
+interface SpeechRecognitionResult {
+  readonly isFinal: boolean;
+  readonly length: number;
+  [index: number]: { readonly transcript: string };
+}
+
+interface SpeechRecognitionResultList {
+  readonly length: number;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionEvent extends Event {
+  readonly results: SpeechRecognitionResultList;
+}
+
 type SpeechRecognitionLike = {
   continuous: boolean; interimResults: boolean; lang: string; maxAlternatives: number;
   start: () => void; stop: () => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  onresult: ((event: any) => void) | null;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
   onerror: ((event: Event) => void) | null;
   onend: (() => void) | null;
 };
@@ -22,17 +36,36 @@ const useChatMic = (locale: string, onUpdate: (text: string) => void, onSubmit: 
   const submitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const windowWithSpeech = window as any;
-    const Recognition = windowWithSpeech.SpeechRecognition ?? windowWithSpeech.webkitSpeechRecognition;
+    return () => {
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch { /* noop */ }
+      }
+      if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
+    };
+  }, []);
+
+  const toggleMic = useCallback(() => {
+    if (isRecording) {
+      setIsRecording(false);
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch { /* noop */ }
+        recognitionRef.current = null;
+      }
+      if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
+      return;
+    }
+    const Win = window as Window & {
+      SpeechRecognition?: new () => SpeechRecognitionLike;
+      webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+    };
+    const Recognition = Win.SpeechRecognition ?? Win.webkitSpeechRecognition;
     if (!Recognition) return;
-    
     const recognition = new Recognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    recognition.onresult = (event: any) => {
+    recognition.maxAlternatives = 1;
+    recognition.lang = locale;
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
       let finalStr = ""; let interimStr = "";
       for (let i = 0; i < event.results.length; i++) {
         const piece = event.results[i][0]?.transcript ?? "";
@@ -41,37 +74,33 @@ const useChatMic = (locale: string, onUpdate: (text: string) => void, onSubmit: 
       }
       const text = `${finalStr} ${interimStr}`.trim();
       onUpdate(text);
-
       if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
-      submitTimerRef.current = setTimeout(() => {
-         if (text.length > 0 && finalStr.length > 0) {
-             setIsRecording(false);
-             try { recognition.stop() } catch {}
-             onSubmit();
-         }
-      }, 800); 
-    };
-
-    recognition.onerror = () => { setIsRecording(false); };
-    recognition.onend = () => { setIsRecording(false); };
-    recognitionRef.current = recognition;
-
-    return () => { try { recognition.stop(); } catch {} };
-  }, [onUpdate, onSubmit, locale]);
-
-  const toggleMic = useCallback(() => {
-      if (!recognitionRef.current) return;
-      if (isRecording) {
+      if (text.length > 0 && finalStr.length > 0) {
+        submitTimerRef.current = setTimeout(() => {
           setIsRecording(false);
-          try { recognitionRef.current.stop(); } catch {}
-          if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
-      } else {
-          recognitionRef.current.lang = locale;
-          setIsRecording(true);
-          onUpdate("");
-          try { recognitionRef.current.start(); } catch {}
+          try { recognition.stop(); } catch { /* noop */ }
+          onSubmit();
+        }, 800);
       }
-  }, [isRecording, locale, onUpdate]);
+    };
+    recognition.onerror = () => {
+      setIsRecording(false);
+      recognitionRef.current = null;
+    };
+    recognition.onend = () => {
+      setIsRecording(false);
+      recognitionRef.current = null;
+    };
+    recognitionRef.current = recognition;
+    try {
+      recognition.start();
+      setIsRecording(true);
+      onUpdate("");
+    } catch {
+      setIsRecording(false);
+      recognitionRef.current = null;
+    }
+  }, [isRecording, locale, onUpdate, onSubmit]);
 
   return { isRecording, isProcessing, setIsProcessing, toggleMic };
 };
@@ -97,7 +126,7 @@ export const ChatPanel = ({ onClose }: ChatPanelProps) => {
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    setVoiceMode(localStorage.getItem("vaani_voice_mode") !== "false");
+    setVoiceMode(localStorage.getItem("vaani_voice_mode") === "true");
     return () => { if (typeof window !== "undefined" && window.speechSynthesis) window.speechSynthesis.cancel(); };
   }, []);
 
@@ -274,19 +303,24 @@ export const ChatPanel = ({ onClose }: ChatPanelProps) => {
             type="button" 
             onClick={toggleMic} 
             disabled={isSending || isProcessing}
-            className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent transition hover:bg-accent/20 border border-accent/20 disabled:opacity-50"
+            title={isRecording ? "Recording — tap to stop" : "Tap to speak"}
+            className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent transition hover:bg-accent/20 border border-accent/20 disabled:opacity-50"
           >
+            {isRecording && (
+              <motion.div
+                className="absolute inset-0 rounded-lg border-2 border-expense"
+                animate={{ scale: [1, 1.15, 1], opacity: [0.8, 0.3, 0.8] }}
+                transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+              />
+            )}
             {isProcessing ? (
                <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
-                  <Loader2 className="h-3.5 w-3.5" />
+                  <Loader2 className="h-4 w-4" />
                </motion.div>
             ) : isRecording ? (
-               <>
-                 <MicOff className="h-3.5 w-3.5 relative z-10" />
-                 <motion.div className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-expense" animate={{ opacity: [1, 0, 1] }} transition={{ duration: 1, repeat: Infinity }} />
-               </>
+               <MicOff className="h-4 w-4 relative z-10" />
             ) : (
-               <Mic className="h-3.5 w-3.5" />
+               <Mic className="h-4 w-4" />
             )}
           </button>
           <motion.button type="submit" disabled={isSending || isProcessing} whileTap={{ scale: 0.95 }} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent text-white transition disabled:opacity-50 hover:bg-[#CC4400]">

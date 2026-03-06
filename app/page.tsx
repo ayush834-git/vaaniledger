@@ -55,9 +55,34 @@ function HomePageContent() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [recurrence, setRecurrence] = useState("NONE");
+  const [confirmCountdown, setConfirmCountdown] = useState<number | null>(null);
 
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (!pendingTransaction) {
+      setConfirmCountdown(null);
+      return;
+    }
+    setConfirmCountdown(6);
+    const interval = setInterval(() => {
+      setConfirmCountdown(prev => {
+        if (prev === null || prev <= 1) {
+          clearInterval(interval);
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    const autoSave = setTimeout(() => {
+      void onConfirmParsedTransaction();
+    }, 6000);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(autoSave);
+    };
+  }, [pendingTransaction]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (searchParams?.get("mic") === "1") {
@@ -130,6 +155,7 @@ function HomePageContent() {
   };
 
   const onEditParsedTransaction = () => {
+    setConfirmCountdown(null);
     if (!pendingTransaction) return;
     setManualInput(pendingTransaction.rawInput);
     setPendingTransaction(null); setPendingSource(null); setStatusMessage(null);
@@ -137,6 +163,7 @@ function HomePageContent() {
   };
 
   const onCancelParsedTransaction = () => {
+    setConfirmCountdown(null);
     setPendingTransaction(null); setPendingSource(null); setStatusMessage(null);
     setRecurrence("NONE");
   };
@@ -194,26 +221,26 @@ function HomePageContent() {
                     <p className="text-sm font-semibold text-accent flex items-center gap-2"><ArrowRight className="h-4 w-4" />{t("home.confirm")}</p>
                     <div className="mt-3 grid gap-2 text-sm">
                       <div className="flex justify-between"><span className="text-textSecondary">{t("home.amount")}</span><span className="font-mono font-semibold text-textPrimary">{formatCurrency(pendingTransaction.amount)}</span></div>
-                      <div className="flex justify-between"><span className="text-textSecondary">{t("home.type")}</span><span className={pendingTransaction.type === "income" ? "text-income font-medium" : "text-expense font-medium"}>{pendingTransaction.type}</span></div>
+                      <div className="flex justify-between"><span className="text-textSecondary">{t("home.type")}</span><span className={pendingTransaction.type === "income" ? "text-income font-medium" : "text-expense font-medium"}>{pendingTransaction.type === "income" ? t("home.typeIncome") : t("home.typeExpense")}</span></div>
                       <div className="flex justify-between"><span className="text-textSecondary">{t("home.category")}</span><span className="text-textPrimary">{pendingTransaction.category}</span></div>
                       <div className="flex justify-between"><span className="text-textSecondary">{t("home.description")}</span><span className="text-textPrimary text-right max-w-[200px] truncate">{pendingTransaction.description}</span></div>
                       
                       <div className="flex justify-between items-center mt-1 pt-3 border-t border-accent/[0.08]">
-                        <span className="text-textSecondary">Repeat?</span>
+                        <span className="text-textSecondary">{t("home.repeat")}</span>
                         <select 
                           value={recurrence} 
                           onChange={(e) => setRecurrence(e.target.value)} 
                           className="rounded-lg border border-accent/12 bg-white px-2 py-1 text-sm text-textPrimary outline-none focus:border-accent/40"
                         >
-                          <option value="NONE">None</option>
-                          <option value="DAILY">Daily</option>
-                          <option value="WEEKLY">Weekly</option>
-                          <option value="MONTHLY">Monthly</option>
+                          <option value="NONE">{t("home.repeat.none")}</option>
+                          <option value="DAILY">{t("home.repeat.daily")}</option>
+                          <option value="WEEKLY">{t("home.repeat.weekly")}</option>
+                          <option value="MONTHLY">{t("home.repeat.monthly")}</option>
                         </select>
                       </div>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <Button type="button" onClick={() => void onConfirmParsedTransaction()} disabled={isSavingConfirmed}>{isSavingConfirmed ? t("home.saving") : t("home.confirmBtn")}</Button>
+                      <Button type="button" onClick={() => void onConfirmParsedTransaction()} disabled={isSavingConfirmed}>{isSavingConfirmed ? t("home.saving") : `${t("home.confirmBtn")} (${confirmCountdown ?? 6}s)`}</Button>
                       <Button type="button" variant="ghost" onClick={onEditParsedTransaction}><Pencil className="h-3 w-3 mr-1" />{t("home.edit")}</Button>
                       <Button type="button" variant="ghost" onClick={onCancelParsedTransaction}><X className="h-3 w-3 mr-1" />{t("home.cancel")}</Button>
                     </div>

@@ -39,7 +39,20 @@
     "income": "Income",
     "expense": "Expense",
     "transactionCount": "{{count}} transaction",
-    "transactionCount_plural": "{{count}} transactions"
+    "transactionCount_plural": "{{count}} transactions",
+    "showing": "Showing {{count}} of {{total}} transactions",
+    "downloadReport": "Download Report",
+    "selectMonth": "Select Month",
+    "sort": {
+      "newest": "Newest first",
+      "oldest": "Oldest first",
+      "amountHigh": "Amount high-low",
+      "amountLow": "Amount low-high"
+    },
+    "clearFilters": "Clear filters",
+    "downloadPdf": "Download PDF",
+    "generating": "Generating...",
+    "reportFailed": "Report download failed"
   },
   "auth": {
     "title": "Sign in",
@@ -81,7 +94,14 @@
     "confirmBtn": "Confirm",
     "saving": "Saving\u2026",
     "edit": "Edit",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "repeat": "Repeat?",
+    "repeat.none": "None",
+    "repeat.daily": "Daily",
+    "repeat.weekly": "Weekly",
+    "repeat.monthly": "Monthly",
+    "typeIncome": "Income",
+    "typeExpense": "Expense"
   },
   "common": {
     "amount": "Amount",

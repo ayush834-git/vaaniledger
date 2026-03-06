@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useCallback, useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import { useMicContext } from "@/lib/context/MicContext";
@@ -10,9 +10,11 @@ export const Shell = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
   const { isMainMicActive, setIsWakeWordListening } = useMicContext();
 
-  const { isListening } = useWakeWord(isMainMicActive, () => {
+  const handleWakeWord = useCallback(() => {
     router.push("/?mic=1");
-  });
+  }, [router]);
+
+  const { isListening } = useWakeWord(isMainMicActive, handleWakeWord);
 
   useEffect(() => {
     setIsWakeWordListening(isListening);

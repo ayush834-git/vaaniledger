@@ -19,14 +19,14 @@ export async function GET() {
   try {
     const userId = await resolveUserId();
 
-    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+    const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000);
     
-    // Check if we have insights in the last 6 hours
+    // Check if we have insights in the last 30 minutes
     const recentInsights = await prisma.insight.findMany({
       where: {
         userId,
         generatedAt: {
-          gte: sixHoursAgo,
+          gte: thirtyMinsAgo,
         },
       },
       orderBy: { generatedAt: 'desc' },
@@ -39,6 +39,8 @@ export async function GET() {
       insights = recentInsights.map(r => ({ ...r, generatedAt: r.generatedAt.toISOString() }));
     } else {
       // Generate new insights
+      const txCount = await prisma.transaction.count({ where: { userId } });
+      if (txCount === 0) return NextResponse.json({ ok: true, insights: [] });
       insights = await generateInsights(userId);
     }
 

@@ -60,7 +60,7 @@ export default function LedgerPage() {
       document.body.removeChild(a);
       setReportPickerOpen(false);
     } catch (e) {
-      setErrorMessage(e instanceof Error ? e.message : "Report download failed");
+      setErrorMessage(e instanceof Error ? e.message : t("ledger.reportFailed"));
     } finally {
       setIsDownloading(false);
     }
@@ -146,20 +146,20 @@ export default function LedgerPage() {
         <div>
           <h2 className="font-display text-3xl font-bold text-textPrimary">{t("ledger.title")}</h2>
           <p className="mt-1 text-sm text-textSecondary">
-            Showing {filteredTransactions.length} of {transactions.length} transactions
+            {t("ledger.showing", { count: filteredTransactions.length, total: transactions.length })}
           </p>
         </div>
         
         <div className="relative">
           <Button onClick={() => setReportPickerOpen((prev) => !prev)} className="gap-2 shrink-0">
-            <FileText className="h-4 w-4" /> Download Report
+            <FileText className="h-4 w-4" /> {t("ledger.downloadReport")}
           </Button>
 
           <AnimatePresence>
             {reportPickerOpen && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.15 }} className="absolute right-0 top-full mt-2 w-64 rounded-xl border border-accent/12 bg-white p-4 shadow-xl z-50">
                 <div className="flex justify-between items-center mb-3">
-                  <h3 className="text-sm font-semibold text-textPrimary">Select Month</h3>
+                  <h3 className="text-sm font-semibold text-textPrimary">{t("ledger.selectMonth")}</h3>
                   <button onClick={() => setReportPickerOpen(false)} className="text-textSecondary hover:text-textPrimary bg-surface rounded-md p-1">
                     <X className="h-3 w-3" />
                   </button>
@@ -178,7 +178,7 @@ export default function LedgerPage() {
                   </select>
                 </div>
                 <Button onClick={downloadReport} disabled={isDownloading} className="w-full justify-center">
-                  {isDownloading ? "Generating..." : "Download PDF"}
+                  {isDownloading ? t("ledger.generating") : t("ledger.downloadPdf")}
                 </Button>
               </motion.div>
             )}
@@ -224,17 +224,17 @@ export default function LedgerPage() {
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium text-textSecondary uppercase tracking-wide">Sort:</span>
                 <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value as typeof sortOrder)} className="rounded-lg border border-accent/12 bg-white px-3 py-1.5 text-sm text-textPrimary outline-none focus:border-accent/40">
-                  <option value="newest">Newest first</option>
-                  <option value="oldest">Oldest first</option>
-                  <option value="amount_high">Amount high-low</option>
-                  <option value="amount_low">Amount low-high</option>
+                  <option value="newest">{t("ledger.sort.newest")}</option>
+                  <option value="oldest">{t("ledger.sort.oldest")}</option>
+                  <option value="amount_high">{t("ledger.sort.amountHigh")}</option>
+                  <option value="amount_low">{t("ledger.sort.amountLow")}</option>
                 </select>
               </div>
             </div>
 
             {isFiltered && (
               <button type="button" onClick={clearFilters} className="text-sm font-medium text-accent hover:underline flex items-center gap-1">
-                <X className="h-3 w-3" /> Clear filters
+                <X className="h-3 w-3" /> {t("ledger.clearFilters")}
               </button>
             )}
           </div>

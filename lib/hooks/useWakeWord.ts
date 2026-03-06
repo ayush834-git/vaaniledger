@@ -31,6 +31,11 @@ export const useWakeWord = (isPaused: boolean, onWakeWordDetected: () => void) =
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const isPausedRef = useRef(isPaused);
   const shouldRestartRef = useRef(false);
+  const onDetectedRef = useRef(onWakeWordDetected);
+
+  useEffect(() => {
+    onDetectedRef.current = onWakeWordDetected;
+  }, [onWakeWordDetected]);
 
   const startListening = useCallback(() => {
     if (!isSupported || isPausedRef.current) return;
@@ -95,7 +100,7 @@ export const useWakeWord = (isPaused: boolean, onWakeWordDetected: () => void) =
       
       const isMatch = WAKE_WORDS.some(word => normalized.includes(word));
       if (isMatch) {
-          onWakeWordDetected();
+          onDetectedRef.current();
           try { recognition.stop(); } catch {}
       }
     };
@@ -125,14 +130,15 @@ export const useWakeWord = (isPaused: boolean, onWakeWordDetected: () => void) =
     };
 
     recognitionRef.current = recognition;
-    startListening();
+    shouldRestartRef.current = true;
+    try { recognition.start(); setIsListening(true); } catch {}
 
     return () => {
       shouldRestartRef.current = false;
       try { recognition.stop(); } catch {}
       recognitionRef.current = null;
     };
-  }, [onWakeWordDetected, startListening, isSupported]);
+  }, [isSupported]);
 
   return { isListening: isListening && !isPaused, isSupported, startListening, stopListening };
 };

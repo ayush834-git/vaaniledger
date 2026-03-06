@@ -85,20 +85,26 @@ export default function DashboardPage() {
   const { status, isAuthenticated } = useRequireAuth();
   const { transactions, isLoading } = useTransactions();
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [pieTab, setPieTab] = useState<"expense" | "income">("expense");
   const [insights, setInsights] = useState<InsightUI[]>([]);
   const [goals, setGoals] = useState<BudgetGoalRecord[]>([]);
 
   useEffect(() => {
-    if (isAuthenticated && !isLoading) {
-      fetch("/api/insights")
-        .then((res) => res.json())
-        .then((data) => {
+    if (!isAuthenticated || isLoading) return;
+    const timer = setTimeout(() => {
+      fetch('/api/insights')
+        .then(r => r.json())
+        .then(data => {
           if (data.ok && data.insights) {
             setInsights(data.insights.filter((i: InsightUI) => !i.dismissed));
           }
-        });
+        })
+        .catch(() => undefined);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [isAuthenticated, isLoading, transactions.length]);
 
+  useEffect(() => {
+    if (isAuthenticated && !isLoading) {
       fetch("/api/goals")
         .then((res) => res.json())
         .then((data) => {
@@ -144,9 +150,13 @@ export default function DashboardPage() {
       .slice(0, 6);
   }, [transactions]);
 
-  const pieData = useMemo(() => {
-    return topCategoriesData.filter((d) => d.type === pieTab).map((d) => ({ name: d.name, value: d.value }));
-  }, [topCategoriesData, pieTab]);
+  const combinedPieData = useMemo(() => {
+    return topCategoriesData.map(item => ({
+      name: item.name,
+      value: item.value,
+      type: item.type,
+    }));
+  }, [topCategoriesData]);
 
   const incomeExpenseByDay = useMemo(() => buildLast7DaysIncomeExpense(transactions), [transactions]);
   const profitTrend = useMemo(() => incomeExpenseByDay.map((r) => ({ day: r.day, value: r.income - r.expense })), [incomeExpenseByDay]);
@@ -256,11 +266,7 @@ export default function DashboardPage() {
 
       <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-12 gap-4">
         <div className="col-span-1 md:col-span-5 relative flex flex-col min-h-[320px] [&_>_div]:flex-1 [&_>_div]:flex [&_>_div]:flex-col">
-          <div className="absolute right-4 top-4 z-10 flex gap-2">
-            <Button variant={pieTab === "expense" ? "primary" : "ghost"} onClick={() => setPieTab("expense")} className="px-3 py-1 h-auto text-xs font-semibold">Expense</Button>
-            <Button variant={pieTab === "income" ? "primary" : "ghost"} onClick={() => setPieTab("income")} className="px-3 py-1 h-auto text-xs font-semibold">Income</Button>
-          </div>
-          <ExpensePieChart data={pieData} />
+          <ExpensePieChart data={combinedPieData} />
         </div>
         <div className="col-span-1 md:col-span-7 flex flex-col min-h-[320px] [&_>_div]:flex-1 [&_>_div]:flex [&_>_div]:flex-col">
           <IncomeExpenseBarChart data={incomeExpenseByDay} />

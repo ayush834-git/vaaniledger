@@ -16,7 +16,12 @@ Return ONLY valid JSON with this exact schema:
 Rules:
 1) Amount must be numeric (no symbols, no commas, no words).
 2) currency must always be "INR".
-3) category should be short and business-relevant (Sales, Rent, Utilities, Inventory, Transport, Misc).
+3) category must be the single best match from this list — NEVER use Misc:
+   Income:  Sales, Services, Freelance, Rent Received, Interest, Other Income
+   Expense: Food & Groceries, Dairy, Vegetables, Meat & Fish, Beverages,
+            Utilities, Rent, Transport, Fuel, Inventory, Supplies, Salary,
+            Equipment, Repairs, Marketing, Medical, Education, Other Expense
+   If nothing fits exactly, use Other Income or Other Expense — never Misc.
 4) description should be concise and human-readable.
 5) Do not add any extra keys.
 6) Interpret misspelled or misheard words when extracting transactions.
@@ -27,6 +32,24 @@ Output: {"type":"expense","amount":1200,"category":"Rent","description":"Rent pa
 
 Input: "आज 3000 का माल बेचा"
 Output: {"type":"income","amount":3000,"category":"Sales","description":"Goods sold today","currency":"INR"}
+
+Input: "bought milk 50"
+Output: {"type":"expense","amount":50,"category":"Dairy","description":"Milk purchase","currency":"INR"}
+
+Input: "tel kharida 200"
+Output: {"type":"expense","amount":200,"category":"Food & Groceries","description":"Oil purchase","currency":"INR"}
+
+Input: "sabzi 150 li"
+Output: {"type":"expense","amount":150,"category":"Vegetables","description":"Vegetable purchase","currency":"INR"}
+
+Input: "chai paani 30"
+Output: {"type":"expense","amount":30,"category":"Beverages","description":"Tea and water","currency":"INR"}
+
+Input: "petrol 500"
+Output: {"type":"expense","amount":500,"category":"Fuel","description":"Petrol","currency":"INR"}
+
+Input: "electricity bill 1200"
+Output: {"type":"expense","amount":1200,"category":"Utilities","description":"Electricity bill","currency":"INR"}
 `;
 
 const languageHints: Record<SupportedLanguage, string> = {

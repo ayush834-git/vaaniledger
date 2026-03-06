@@ -72,11 +72,11 @@ export const generateInsights = async (userId: string): Promise<InsightRecord[]>
     .slice(0, 3);
 
   const currentWeekSpending = recentTransactions
-    .filter((tx) => tx.type === "expense" && tx.createdAt >= currentWeekStart)
+    .filter((tx) => tx.type === "expense" && new Date(tx.createdAt).getTime() >= currentWeekStart.getTime())
     .reduce((sum, tx) => sum + toNumber(tx.amount), 0);
 
   const previousWeekSpending = recentTransactions
-    .filter((tx) => tx.type === "expense" && tx.createdAt >= previousWeekStart && tx.createdAt < currentWeekStart)
+    .filter((tx) => tx.type === "expense" && new Date(tx.createdAt).getTime() >= previousWeekStart.getTime() && new Date(tx.createdAt).getTime() < currentWeekStart.getTime())
     .reduce((sum, tx) => sum + toNumber(tx.amount), 0);
 
   const weekChangeAmount = currentWeekSpending - previousWeekSpending;
