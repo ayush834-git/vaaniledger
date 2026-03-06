@@ -171,6 +171,18 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
     [language, onTransactionParsed, t],
   );
 
+  const armSilenceTimerRef = useRef(armSilenceTimer);
+  useEffect(() => { armSilenceTimerRef.current = armSilenceTimer; }, [armSilenceTimer]);
+
+  const clearSilenceTimerRef = useRef(clearSilenceTimer);
+  useEffect(() => { clearSilenceTimerRef.current = clearSilenceTimer; }, [clearSilenceTimer]);
+
+  const parseTranscriptRef = useRef(parseTranscript);
+  useEffect(() => { parseTranscriptRef.current = parseTranscript; }, [parseTranscript]);
+
+  const tRef = useRef(t);
+  useEffect(() => { tRef.current = t; }, [t]);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const windowWithSpeech = window as Window & {
@@ -202,49 +214,49 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
       const merged = `${finalStr.trim()} ${interimStr.trim()}`.trim();
       liveTranscriptRef.current = merged;
       setTranscript(merged);
-      armSilenceTimer();
+      armSilenceTimerRef.current();
     };
 
     recognition.onnomatch = () => {
-      armSilenceTimer();
+      armSilenceTimerRef.current();
     };
 
     recognition.onspeechend = () => {
-      armSilenceTimer();
+      armSilenceTimerRef.current();
     };
 
     recognition.onerror = (event) => {
-      clearSilenceTimer();
+      clearSilenceTimerRef.current();
       if (event.error === "no-speech") {
-        armSilenceTimer();
+        armSilenceTimerRef.current();
         return;
       }
       shouldRestartRef.current = false;
       submittedOnStopRef.current = false;
       setIsRecording(false);
       if (event.error !== "aborted") {
-        setErrorMessage(t("mic.recognitionFailed"));
+        setErrorMessage(tRef.current("mic.recognitionFailed"));
       }
     };
 
     recognition.onend = () => {
       if (shouldRestartRef.current) {
-        try { recognition.start(); armSilenceTimer(); return; } catch {
+        try { recognition.start(); armSilenceTimerRef.current(); return; } catch {
           shouldRestartRef.current = false;
           setIsRecording(false);
           return;
         }
       }
       setIsRecording(false);
-      clearSilenceTimer();
+      clearSilenceTimerRef.current();
       if (!submittedOnStopRef.current) return;
       submittedOnStopRef.current = false;
-      void parseTranscript(finalTranscriptRef.current || liveTranscriptRef.current);
+      void parseTranscriptRef.current(finalTranscriptRef.current || liveTranscriptRef.current);
     };
 
     recognitionRef.current = recognition;
-    return () => { clearSilenceTimer(); recognition.stop(); recognitionRef.current = null; };
-  }, [armSilenceTimer, clearSilenceTimer, parseTranscript, speechLocale, t]);
+    return () => { clearSilenceTimerRef.current(); recognition.stop(); recognitionRef.current = null; };
+  }, [speechLocale]);
 
   const onMicClick = () => {
     if (!isSupported || !recognitionRef.current || isProcessing) return;

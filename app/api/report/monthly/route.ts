@@ -202,11 +202,12 @@ Keep it professional but concise.`;
     const mm = String(month).padStart(2, "0");
     const filename = `vaaniledger-${year}-${mm}.pdf`;
 
-    return new Response(pdfBuffer as unknown as BodyInit, {
+    return new Response(new Uint8Array(pdfBuffer), {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Length": pdfBuffer.length.toString(),
       },
     });
   } catch (error) {
