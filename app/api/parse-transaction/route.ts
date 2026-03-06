@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { AIParseError, detectIntent, normalizeTranscript, parseTransactionWithAI } from "@/lib/ai/gemini";
 import { parseTransactionInputSchema, parsedTransactionSchema, TransactionParseSchema } from "@/lib/ai/schemas";
-import { getServerAuthSession } from "@/lib/auth/session";
+import { resolveUserId as baseResolveUserId } from "@/lib/auth/resolveUserId";
 import { prisma } from "@/lib/db/prisma";
 import { chatWithFinanceAssistant } from "@/lib/services/chat";
 import { generateInsights } from "@/lib/services/insights";
@@ -84,27 +84,14 @@ const handleCommand = async ({
 };
 
 const resolveUserId = async (language: "en" | "hi" | "te" | "ta"): Promise<string> => {
-  const session = await getServerAuthSession();
-  const fallbackEmail = process.env.DEMO_USER_EMAIL ?? "demo@vaaniledger.local";
-  const email = session?.user?.email ?? fallbackEmail;
+  const userId = await baseResolveUserId();
 
-  const user = await prisma.user.upsert({
-    where: { email },
-    create: {
-      email,
-      languagePref: language,
-      name: session?.user?.name ?? "Demo User",
-    },
-    update: {
-      languagePref: language,
-      name: session?.user?.name ?? undefined,
-    },
-    select: {
-      id: true,
-    },
+  await prisma.user.update({
+    where: { id: userId },
+    data: { languagePref: language },
   });
 
-  return user.id;
+  return userId;
 };
 
 export async function POST(request: Request) {

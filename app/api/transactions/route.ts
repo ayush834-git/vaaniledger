@@ -2,16 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
-import { getServerAuthSession } from "@/lib/auth/session";
-import { prisma } from "@/lib/db/prisma";
 import { createTransaction, getTransactions } from "@/lib/services/transactions";
 import type {
   CreateTransactionResponse,
   TransactionsListResponse,
   TransactionsQuery,
 } from "@/lib/types/api";
-
-const DEMO_EMAIL = "demo@vaaniledger.local";
 
 const querySchema = z.object({
   type: z.enum(["income", "expense"]).optional(),
@@ -32,25 +28,7 @@ const createTransactionSchema = z.object({
   inputLanguage: z.enum(["en", "hi", "te", "ta"]).optional(),
 });
 
-const resolveUserId = async () => {
-  const session = await getServerAuthSession();
-  const email = session?.user?.email ?? process.env.DEMO_USER_EMAIL ?? DEMO_EMAIL;
-  const user = await prisma.user.upsert({
-    where: { email },
-    create: {
-      email,
-      name: session?.user?.name ?? "Demo User",
-    },
-    update: {
-      name: session?.user?.name ?? undefined,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  return user.id;
-};
+import { resolveUserId } from "@/lib/auth/resolveUserId";
 
 export async function GET(request: NextRequest) {
   try {

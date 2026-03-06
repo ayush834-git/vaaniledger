@@ -17,6 +17,14 @@ export const isGuestMode = (): boolean => {
 export const enableGuestMode = (): void => {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(GUEST_MODE_KEY, "true");
+  
+  let guestId = window.localStorage.getItem("vaaniledger.guestId");
+  if (!guestId) {
+    guestId = crypto.randomUUID();
+    window.localStorage.setItem("vaaniledger.guestId", guestId);
+  }
+  
+  document.cookie = `guestId=${guestId}; path=/; max-age=31536000; SameSite=Lax`;
   window.dispatchEvent(new Event(CHANGE_EVENT));
 };
 

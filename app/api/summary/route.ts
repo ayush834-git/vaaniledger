@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 
-import { getServerAuthSession } from "@/lib/auth/session";
+import { resolveUserId } from "@/lib/auth/resolveUserId";
 import { prisma } from "@/lib/db/prisma";
 import { getSummary } from "@/lib/services/analytics";
 import type { SummaryResponse, SummaryResponseData } from "@/lib/types/api";
 
-const DEMO_EMAIL = "demo@vaaniledger.local";
 const emptySummary: SummaryResponseData = {
   today: { income: 0, expenses: 0, netProfit: 0 },
   week: { income: 0, expenses: 0, netProfit: 0 },
@@ -15,10 +14,9 @@ const emptySummary: SummaryResponseData = {
 
 export async function GET() {
   try {
-    const session = await getServerAuthSession();
-    const email = session?.user?.email ?? process.env.DEMO_USER_EMAIL ?? DEMO_EMAIL;
+    const userId = await resolveUserId();
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { id: userId },
       select: { id: true },
     });
 

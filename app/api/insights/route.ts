@@ -2,11 +2,8 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
-import { getServerAuthSession } from "@/lib/auth/session";
-import { prisma } from "@/lib/db/prisma";
+import { resolveUserId } from "@/lib/auth/resolveUserId";
 import { AIParseError, generateInsights } from "@/lib/services/insights";
-
-const DEMO_EMAIL = "demo@vaaniledger.local";
 
 const buildError = (code: string, message: string) => ({
   ok: false,
@@ -18,24 +15,9 @@ const buildError = (code: string, message: string) => ({
 
 export async function GET() {
   try {
-    const session = await getServerAuthSession();
-    const email = session?.user?.email ?? process.env.DEMO_USER_EMAIL ?? DEMO_EMAIL;
+    const userId = await resolveUserId();
 
-    const user = await prisma.user.upsert({
-      where: { email },
-      create: {
-        email,
-        name: session?.user?.name ?? "Demo User",
-      },
-      update: {
-        name: session?.user?.name ?? undefined,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    const insights = await generateInsights(user.id);
+    const insights = await generateInsights(userId);
 
     return NextResponse.json({
       ok: true,

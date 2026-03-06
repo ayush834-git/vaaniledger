@@ -3,12 +3,10 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { chatInputSchema } from "@/lib/ai/schemas";
-import { getServerAuthSession } from "@/lib/auth/session";
+import { resolveUserId } from "@/lib/auth/resolveUserId";
 import { prisma } from "@/lib/db/prisma";
 import { AIParseError, chatWithFinanceAssistant } from "@/lib/services/chat";
 import type { SupportedLanguage } from "@/lib/types/domain";
-
-const DEMO_EMAIL = "demo@vaaniledger.local";
 
 const resolveLanguage = (value: string | null | undefined): SupportedLanguage => {
   if (value === "hi" || value === "te" || value === "ta") {
@@ -34,26 +32,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const session = await getServerAuthSession();
-    const email = session?.user?.email ?? process.env.DEMO_USER_EMAIL ?? DEMO_EMAIL;
-
-    const user = await prisma.user.upsert({
-      where: { email },
-      create: {
-        email,
-        name: session?.user?.name ?? "Demo User",
-      },
-      update: {
-        name: session?.user?.name ?? undefined,
-      },
-      select: {
-        id: true,
-        languagePref: true,
-      },
+    const userId = await resolveUserId();
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { languagePref: true },
     });
 
-    const language = parsed.data.language ?? resolveLanguage(user.languagePref);
-    const reply = await chatWithFinanceAssistant(user.id, parsed.data.message, language);
+    const language = parsed.data.language ?? resolveLanguage(user?.languagePref);
+    const reply = await chatWithFinanceAssistant(userId, parsed.data.message, language);
 
     return NextResponse.json({
       ok: true,
