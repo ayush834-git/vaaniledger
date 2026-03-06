@@ -218,8 +218,15 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
     if (isRecording) {
       clearSilenceTimer();
       shouldRestartRef.current = false;
-      submittedOnStopRef.current = true;
-      recognitionRef.current.stop();
+      submittedOnStopRef.current = false;
+      setIsRecording(false);
+      try { recognitionRef.current.stop(); } catch {}
+      const input = finalTranscriptRef.current || liveTranscriptRef.current;
+      if (input) {
+        void parseTranscript(input);
+      } else {
+        setTranscript("");
+      }
       return;
     }
     try {

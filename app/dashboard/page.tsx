@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, useMotionValue, animate, AnimatePresence, type Variants } from "framer-motion";
 import { useTranslation } from "react-i18next";
-import { MessageCircle, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
+import { MessageCircle, TrendingUp, TrendingDown, IndianRupee } from "lucide-react";
 
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { TopCategoriesChart } from "@/components/charts/TopCategoriesChart";
@@ -83,7 +83,7 @@ export default function DashboardPage() {
   const summaryCards = [
     { id: "income", label: t("dashboard.todayIncome"), amount: todaySummary.income, borderColor: "border-l-income", textColor: "text-income", icon: TrendingUp, iconColor: "text-income", gradColor: "#00A86B" },
     { id: "expense", label: t("dashboard.todayExpense"), amount: todaySummary.expenses, borderColor: "border-l-expense", textColor: "text-expense", icon: TrendingDown, iconColor: "text-expense", gradColor: "#E8003D" },
-    { id: "profit", label: t("dashboard.netProfit"), amount: todaySummary.netProfit, borderColor: "border-l-accent", textColor: "text-accent", icon: DollarSign, iconColor: "text-accent", gradColor: "#FF5500" },
+    { id: "profit", label: t("dashboard.netProfit"), amount: todaySummary.netProfit, borderColor: "border-l-accent", textColor: "text-accent", icon: IndianRupee, iconColor: "text-accent", gradColor: "#FF5500" },
   ];
 
   /* Top categories — includes BOTH income and expense */
