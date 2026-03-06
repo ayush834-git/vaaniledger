@@ -30,6 +30,13 @@ function AnimatedNumber({ value, prefix = "\u20B9" }: { value: number; prefix?: 
   return <span>{displayValue}</span>;
 }
 
+const toLocalISODate = (date: Date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
 const buildLast7DaysIncomeExpense = (transactions: TransactionRecord[]) => {
   const now = new Date();
   const start = new Date(now);
@@ -37,11 +44,12 @@ const buildLast7DaysIncomeExpense = (transactions: TransactionRecord[]) => {
   start.setDate(start.getDate() - 6);
   const dayBuckets = Array.from({ length: 7 }).map((_, i) => {
     const date = new Date(start.getTime() + i * DAY_MS);
-    return { day: date.toLocaleDateString("en-IN", { weekday: "short" }), dateKey: date.toISOString().slice(0, 10), income: 0, expense: 0 };
+    return { day: date.toLocaleDateString("en-IN", { weekday: "short" }), dateKey: toLocalISODate(date), income: 0, expense: 0 };
   });
   const map = new Map(dayBuckets.map((b) => [b.dateKey, b]));
   for (const tx of transactions) {
-    const key = new Date(tx.createdAt).toISOString().slice(0, 10);
+    const txDate = new Date(tx.createdAt);
+    const key = toLocalISODate(txDate);
     const bucket = map.get(key);
     if (!bucket) continue;
     if (tx.type === "income") bucket.income += tx.amount; else bucket.expense += tx.amount;
