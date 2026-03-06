@@ -249,14 +249,14 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
                 recognitionRef.current.start();
                 armSilenceTimerRef.current();
               }
-            } catch (_e) {
+            } catch {
               shouldRestartRef.current = false;
               submittedOnStopRef.current = false;
               setIsRecording(false);
             }
           }, 100);
           return;
-        } catch (_e) {
+        } catch {
           shouldRestartRef.current = false;
           submittedOnStopRef.current = false;
           setIsRecording(false);
@@ -305,7 +305,7 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
       // Wrap start in try-catch to handle immediate errors
       try {
         recognitionRef.current.start();
-      } catch (_startErr) {
+      } catch {
         // If start fails immediately, reset state
         shouldRestartRef.current = false;
         submittedOnStopRef.current = false;
