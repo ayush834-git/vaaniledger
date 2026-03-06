@@ -155,16 +155,18 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
 
     recognition.onresult = (event) => {
       lastSpeechTimeRef.current = Date.now();
-      let interim = "";
-      for (let idx = event.resultIndex; idx < event.results.length; idx += 1) {
-        const piece = event.results[idx][0]?.transcript ?? "";
-        if (event.results[idx].isFinal) {
-          finalTranscriptRef.current = `${finalTranscriptRef.current} ${piece}`.trim();
+      let finalStr = "";
+      let interimStr = "";
+      for (let i = 0; i < event.results.length; i += 1) {
+        const piece = event.results[i][0]?.transcript ?? "";
+        if (event.results[i].isFinal) {
+          finalStr = `${finalStr} ${piece}`;
         } else {
-          interim = `${interim} ${piece}`.trim();
+          interimStr = `${interimStr} ${piece}`;
         }
       }
-      const merged = `${finalTranscriptRef.current} ${interim}`.trim();
+      finalTranscriptRef.current = finalStr.trim();
+      const merged = `${finalStr.trim()} ${interimStr.trim()}`.trim();
       liveTranscriptRef.current = merged;
       setTranscript(merged);
       armSilenceTimer();

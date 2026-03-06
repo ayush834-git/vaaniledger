@@ -29,7 +29,7 @@ export const IncomeExpenseBarChart = ({ data }: IncomeExpenseBarChartProps) => {
         {isMounted ? (
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data}>
-              <XAxis stroke="rgba(0,0,0,0.4)" dataKey="day" />
+              <XAxis stroke="rgba(0,0,0,0.4)" dataKey="day" interval={0} />
               <YAxis stroke="rgba(0,0,0,0.4)" />
               <Tooltip
                 contentStyle={{
