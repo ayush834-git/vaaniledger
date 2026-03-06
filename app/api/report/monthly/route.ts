@@ -202,7 +202,7 @@ Keep it professional but concise.`;
     const mm = String(month).padStart(2, "0");
     const filename = `vaaniledger-${year}-${mm}.pdf`;
 
-    return new Response(pdfBuffer as any, {
+    return new Response(pdfBuffer as unknown as BodyInit, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",

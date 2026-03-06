@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { Pie, PieChart, ResponsiveContainer, Tooltip, Cell } from "recharts";
-import { useTranslation } from "react-i18next";
 
 import { Card } from "@/components/ui/Card";
 
@@ -18,7 +17,6 @@ const EXPENSE_COLORS = ["#E8003D", "#FF5500", "#FF8C42", "#FFBA49", "#FFD166"];
 const INCOME_COLORS = ["#00A86B", "#2D9B51", "#52B788", "#74C69D", "#95D5B2"];
 
 export const ExpensePieChart = ({ data }: ExpensePieChartProps) => {
-  const { t } = useTranslation();
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -54,12 +52,12 @@ export const ExpensePieChart = ({ data }: ExpensePieChartProps) => {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie data={chartData} dataKey="value" nameKey="name" innerRadius={60} outerRadius={100}>
-                    {chartData.map((entry, index) => (
+                    {chartData.map((entry) => (
                       <Cell key={entry.name} fill={entry.fill} />
                     ))}
                   </Pie>
                   <Tooltip
-                    formatter={(value: any) => `₹${Number(value).toLocaleString("en-IN")}`}
+                    formatter={(value: string | number | undefined) => `₹${Number(value ?? 0).toLocaleString("en-IN")}`}
                     contentStyle={{
                       backgroundColor: "#FFFFFF",
                       border: "1px solid rgba(0,0,0,0.08)",

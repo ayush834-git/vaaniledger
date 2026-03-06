@@ -9,7 +9,6 @@ import { ChatPanel } from "@/components/chat/ChatPanel";
 import { ExpensePieChart } from "@/components/charts/ExpensePieChart";
 import { IncomeExpenseBarChart } from "@/components/charts/IncomeExpenseBarChart";
 import { ProfitLineChart } from "@/components/charts/ProfitLineChart";
-import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { useTransactions } from "@/lib/hooks/useTransactions";
