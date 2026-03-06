@@ -85,7 +85,7 @@ Keep it professional but concise.`;
       } else {
         aiNarrative = "No transactions recorded for this month. Your financial snapshot is currently empty.";
       }
-    } catch (e) {
+    } catch {
       aiNarrative = "AI summary could not be generated at this time.";
     }
 
