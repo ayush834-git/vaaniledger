@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useTranslation } from "react-i18next";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
 import { isGuestMode, disableGuestMode } from "@/lib/auth/guestMode";
@@ -16,16 +16,18 @@ const NAV_ITEMS = [
   { href: "/ledger", labelKey: "nav.ledger" },
 ];
 
+const subscribeGuest = (cb: () => void) => {
+  window.addEventListener("storage", cb);
+  window.addEventListener("vaaniledger:guest-change", cb);
+  return () => { window.removeEventListener("storage", cb); window.removeEventListener("vaaniledger:guest-change", cb); };
+};
+
 export const AppHeader = () => {
   const pathname = usePathname();
   const router = useRouter();
   const { status, data } = useSession();
   const { t } = useTranslation();
-  const [guest, setGuest] = useState(false);
-
-  useEffect(() => {
-    setGuest(isGuestMode());
-  }, []);
+  const guest = useSyncExternalStore(subscribeGuest, isGuestMode, () => false);
 
   const handleGuestSignIn = () => {
     disableGuestMode();
