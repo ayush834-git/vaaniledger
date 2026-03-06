@@ -96,7 +96,7 @@ export default function DashboardPage() {
   const profitTrend = useMemo(() => incomeExpenseByDay.map((r) => ({ day: r.day, value: r.income - r.expense })), [incomeExpenseByDay]);
   const latestTransaction = transactions[0] ?? null;
 
-  if (status === "loading" || isLoading || !isAuthenticated) {
+  if ((status === "loading" || isLoading) && !isAuthenticated) {
     return (
       <div className="flex items-center justify-center py-20">
         <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="h-8 w-8 rounded-full border-2 border-accent border-t-transparent" />

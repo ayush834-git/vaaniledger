@@ -10,7 +10,8 @@
     "dashboard": "Dashboard",
     "ledger": "Ledger",
     "signIn": "Sign In",
-    "logout": "Logout"
+    "logout": "Logout",
+    "guestMode": "Guest Mode"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -47,7 +48,10 @@
     "sendLink": "Send magic link",
     "sent": "Magic link sent. Check your inbox.",
     "sending": "Sending\u2026",
-    "noPassword": "We'll send a magic link to your email. No password needed."
+    "noPassword": "We'll send a magic link to your email. No password needed.",
+    "continueAsGuest": "Continue as Guest",
+    "guestNote": "No sign-up needed. Explore with sample data.",
+    "orDivider": "OR"
   },
   "add": {
     "transaction": "Add Transaction"

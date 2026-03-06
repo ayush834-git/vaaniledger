@@ -2,11 +2,13 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useTranslation } from "react-i18next";
+import { useEffect, useState } from "react";
 
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
+import { isGuestMode, disableGuestMode } from "@/lib/auth/guestMode";
 
 const NAV_ITEMS = [
   { href: "/", labelKey: "nav.home" },
@@ -16,8 +18,19 @@ const NAV_ITEMS = [
 
 export const AppHeader = () => {
   const pathname = usePathname();
+  const router = useRouter();
   const { status, data } = useSession();
   const { t } = useTranslation();
+  const [guest, setGuest] = useState(false);
+
+  useEffect(() => {
+    setGuest(isGuestMode());
+  }, []);
+
+  const handleGuestSignIn = () => {
+    disableGuestMode();
+    router.push("/auth");
+  };
 
   return (
     <motion.header
@@ -79,6 +92,19 @@ export const AppHeader = () => {
                 className="rounded-lg border border-accent/12 px-3 py-1.5 text-xs text-textSecondary transition hover:border-accent/30 hover:text-accent"
               >
                 {t("nav.logout")}
+              </button>
+            </>
+          ) : guest ? (
+            <>
+              <span className="hidden text-[10px] text-textSecondary/70 lg:flex items-center gap-1.5">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-secondary animate-pulse" />
+                {t("nav.guestMode")}
+              </span>
+              <button
+                onClick={handleGuestSignIn}
+                className="rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-[#CC4400] shadow-glow"
+              >
+                {t("nav.signIn")}
               </button>
             </>
           ) : (

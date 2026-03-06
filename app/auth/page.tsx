@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
-import { Mail, ArrowRight, Loader2 } from "lucide-react";
+import { Mail, ArrowRight, Loader2, UserCircle2 } from "lucide-react";
+
+import { enableGuestMode } from "@/lib/auth/guestMode";
 
 export default function AuthPage() {
   const router = useRouter();
@@ -21,6 +23,11 @@ export default function AuthPage() {
     event.preventDefault(); setIsLoading(true); setSent(false);
     await signIn("email", { email, redirect: false, callbackUrl: "/dashboard" });
     setIsLoading(false); setSent(true);
+  };
+
+  const onContinueAsGuest = () => {
+    enableGuestMode();
+    router.push("/dashboard");
   };
 
   return (
@@ -61,6 +68,29 @@ export default function AuthPage() {
               </motion.div>
             ) : null}
           </form>
+
+          {/* Divider */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-accent/[0.08]" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-white px-3 text-xs text-textSecondary/60">{t("auth.orDivider")}</span>
+            </div>
+          </div>
+
+          {/* Guest Mode Button */}
+          <motion.button
+            type="button"
+            onClick={onContinueAsGuest}
+            whileTap={{ scale: 0.97 }}
+            whileHover={{ scale: 1.01 }}
+            className="flex w-full items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-accent/20 bg-accent/[0.03] py-3 text-sm font-semibold text-accent transition-all hover:border-accent/40 hover:bg-accent/[0.06]"
+          >
+            <UserCircle2 className="h-4 w-4" />
+            {t("auth.continueAsGuest")}
+          </motion.button>
+          <p className="mt-2 text-[11px] text-textSecondary/50 text-center">{t("auth.guestNote")}</p>
 
           <div className="mt-6 border-t border-accent/[0.08] pt-4">
             <p className="text-xs text-textSecondary/60 text-center">{t("auth.noPassword")}</p>
