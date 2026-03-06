@@ -34,6 +34,7 @@ const useChatMic = (locale: string, onUpdate: (text: string) => void, onSubmit: 
   const [isProcessing, setIsProcessing] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const submitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intentionalStopRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -46,6 +47,7 @@ const useChatMic = (locale: string, onUpdate: (text: string) => void, onSubmit: 
 
   const toggleMic = useCallback(() => {
     if (isRecording) {
+      intentionalStopRef.current = true;
       setIsRecording(false);
       if (recognitionRef.current) {
         try { recognitionRef.current.stop(); } catch { /* noop */ }
@@ -65,6 +67,7 @@ const useChatMic = (locale: string, onUpdate: (text: string) => void, onSubmit: 
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
     recognition.lang = locale;
+    intentionalStopRef.current = false;
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       let finalStr = ""; let interimStr = "";
       for (let i = 0; i < event.results.length; i++) {
@@ -77,19 +80,34 @@ const useChatMic = (locale: string, onUpdate: (text: string) => void, onSubmit: 
       if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
       if (text.length > 0 && finalStr.length > 0) {
         submitTimerRef.current = setTimeout(() => {
+          intentionalStopRef.current = true;
           setIsRecording(false);
           try { recognition.stop(); } catch { /* noop */ }
+          recognitionRef.current = null;
           onSubmit();
         }, 800);
       }
     };
-    recognition.onerror = () => {
+    recognition.onerror = (event: Event) => {
+      const errEvent = event as Event & { error?: string };
+      if (errEvent.error === "no-speech" || errEvent.error === "aborted") return;
+      intentionalStopRef.current = true;
       setIsRecording(false);
       recognitionRef.current = null;
     };
     recognition.onend = () => {
-      setIsRecording(false);
-      recognitionRef.current = null;
+      if (intentionalStopRef.current) {
+        setIsRecording(false);
+        recognitionRef.current = null;
+        return;
+      }
+      // Browser auto-stopped — restart to keep listening
+      try {
+        recognition.start();
+      } catch {
+        setIsRecording(false);
+        recognitionRef.current = null;
+      }
     };
     recognitionRef.current = recognition;
     try {

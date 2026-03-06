@@ -17,6 +17,7 @@ export const useSmartVAD = ({ onSilenceDetected }: UseSmartVADOptions) => {
   const rafRef = useRef<number | null>(null);
   const silenceStartRef = useRef<number | null>(null);
   const isRunningRef = useRef(false);
+  const hasSpokenRef = useRef(false);
 
   const onSilenceRef = useRef(onSilenceDetected);
   useEffect(() => {
@@ -48,6 +49,7 @@ export const useSmartVAD = ({ onSilenceDetected }: UseSmartVADOptions) => {
     setIsVoiceActive(false);
     setEnergyLevel(0);
     silenceStartRef.current = null;
+    hasSpokenRef.current = false;
   }, []);
 
   const startVAD = useCallback(async () => {
@@ -70,7 +72,8 @@ export const useSmartVAD = ({ onSilenceDetected }: UseSmartVADOptions) => {
       sourceRef.current = source;
 
       isRunningRef.current = true;
-      silenceStartRef.current = Date.now();
+      silenceStartRef.current = null;
+      hasSpokenRef.current = false;
       
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Float32Array(bufferLength);
@@ -93,13 +96,16 @@ export const useSmartVAD = ({ onSilenceDetected }: UseSmartVADOptions) => {
         if (rms > 0.012) {
           setIsVoiceActive(true);
           silenceStartRef.current = null;
+          hasSpokenRef.current = true;
         } else {
           setIsVoiceActive(false);
-          if (silenceStartRef.current === null) {
-            silenceStartRef.current = Date.now();
-          } else if (silenceStartRef.current !== Infinity && Date.now() - silenceStartRef.current > 1200) {
-            onSilenceRef.current();
-            silenceStartRef.current = Infinity; // Prevent multiple triggers until voice is active again
+          if (hasSpokenRef.current) {
+            if (silenceStartRef.current === null) {
+              silenceStartRef.current = Date.now();
+            } else if (silenceStartRef.current !== Infinity && Date.now() - silenceStartRef.current > 2000) {
+              onSilenceRef.current();
+              silenceStartRef.current = Infinity;
+            }
           }
         }
 
