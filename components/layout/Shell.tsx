@@ -1,24 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, type ReactNode } from "react";
 
 import { useMicContext } from "@/lib/context/MicContext";
-import { useWakeWord } from "@/lib/hooks/useWakeWord";
 
 export const Shell = ({ children }: { children: ReactNode }) => {
-  const router = useRouter();
-  const { isMainMicActive, setIsWakeWordListening } = useMicContext();
-
-  const handleWakeWord = useCallback(() => {
-    router.push("/?mic=1");
-  }, [router]);
-
-  const { isListening } = useWakeWord(isMainMicActive, handleWakeWord);
+  const { setIsWakeWordListening } = useMicContext();
 
   useEffect(() => {
-    setIsWakeWordListening(isListening);
-  }, [isListening, setIsWakeWordListening]);
+    setIsWakeWordListening(false);
+  }, [setIsWakeWordListening]);
 
   return <div className="mx-auto max-w-6xl px-4 py-4 md:px-6">{children}</div>;
 };
