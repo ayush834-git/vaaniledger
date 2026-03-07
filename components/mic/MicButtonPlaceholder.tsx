@@ -78,7 +78,6 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
   const shouldRestartRef = useRef(false);
   const finalTranscriptRef = useRef("");
   const liveTranscriptRef = useRef("");
-  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSpeechTimeRef = useRef<number>(Date.now());
 
   const language = useMemo(() => resolveSupportedLanguage(i18n.language), [i18n.language]);
@@ -97,19 +96,7 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
     }
   }, [savedSignal, t]);
 
-  const clearSilenceTimer = useCallback(() => {
-    if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null; }
-  }, []);
 
-  const armSilenceTimer = useCallback(() => {
-    clearSilenceTimer();
-    silenceTimerRef.current = setTimeout(() => {
-      if (!recognitionRef.current || !shouldRestartRef.current || isProcessing) return;
-      shouldRestartRef.current = false;
-      submittedOnStopRef.current = true;
-      recognitionRef.current.stop();
-    }, 2500);
-  }, [clearSilenceTimer, isProcessing]);
 
   const parseTranscript = useCallback(
     async (value: string) => {
@@ -175,12 +162,6 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
     [language, onTransactionParsed, t],
   );
 
-  const armSilenceTimerRef = useRef(armSilenceTimer);
-  useEffect(() => { armSilenceTimerRef.current = armSilenceTimer; }, [armSilenceTimer]);
-
-  const clearSilenceTimerRef = useRef(clearSilenceTimer);
-  useEffect(() => { clearSilenceTimerRef.current = clearSilenceTimer; }, [clearSilenceTimer]);
-
   const parseTranscriptRef = useRef(parseTranscript);
   useEffect(() => { parseTranscriptRef.current = parseTranscript; }, [parseTranscript]);
 
@@ -218,21 +199,18 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
       const merged = `${finalStr.trim()} ${interimStr.trim()}`.trim();
       liveTranscriptRef.current = merged;
       setTranscript(merged);
-      armSilenceTimerRef.current();
     };
 
-    recognition.onnomatch = () => {
-      armSilenceTimerRef.current();
-    };
+    recognition.onnomatch = () => {};
 
-    recognition.onspeechend = () => {
-      armSilenceTimerRef.current();
-    };
+    recognition.onspeechend = () => {};
 
     recognition.onerror = (event) => {
-      clearSilenceTimerRef.current();
       if (event.error === "no-speech") {
-        armSilenceTimerRef.current();
+        shouldRestartRef.current = false;
+        submittedOnStopRef.current = false;
+        setIsRecording(false);
+        stopVAD();
         return;
       }
       shouldRestartRef.current = false;
@@ -251,7 +229,6 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
             try {
               if (shouldRestartRef.current && recognitionRef.current) {
                 recognitionRef.current.start();
-                armSilenceTimerRef.current();
               }
             } catch {
               shouldRestartRef.current = false;
@@ -268,20 +245,18 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
         }
       }
       setIsRecording(false);
-      clearSilenceTimerRef.current();
       if (!submittedOnStopRef.current) return;
       submittedOnStopRef.current = false;
       void parseTranscriptRef.current(finalTranscriptRef.current || liveTranscriptRef.current);
     };
 
     recognitionRef.current = recognition;
-    return () => { clearSilenceTimerRef.current(); recognition.stop(); recognitionRef.current = null; };
+    return () => { recognition.stop(); recognitionRef.current = null; };
   }, [speechLocale]);
 
   const onMicClick = () => {
     if (!isSupported || !recognitionRef.current || isProcessing) return;
     if (isRecording) {
-      clearSilenceTimer();
       shouldRestartRef.current = false;
       submittedOnStopRef.current = false;
       setIsRecording(false);
@@ -314,17 +289,14 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
         shouldRestartRef.current = false;
         submittedOnStopRef.current = false;
         setIsRecording(false);
-        clearSilenceTimer();
         stopVAD();
         setErrorMessage("Microphone access denied or unavailable.");
         return;
       }
       
-      armSilenceTimer();
       startVAD();
     } catch {
       setIsRecording(false);
-      clearSilenceTimer();
       stopVAD();
       shouldRestartRef.current = false;
       submittedOnStopRef.current = false;
