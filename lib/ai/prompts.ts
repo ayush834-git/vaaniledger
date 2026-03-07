@@ -110,9 +110,10 @@ Rules:
 2) Do not repeat the same observation.
 3) At least one insight must mention week-over-week spending movement.
 4) At least one insight must mention top expense categories.
-5) No markdown, no extra keys, no explanation outside JSON.
+5) All monetary amounts MUST be formatted with the Indian Rupee symbol (₹) instead of the Dollar symbol ($) or the word "rupees".
+6) No markdown, no extra keys, no explanation outside JSON.
 
-Business stats:
+Business stats (all amounts are in INR):
 ${JSON.stringify(stats)}
 `.trim();
 };
