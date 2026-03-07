@@ -184,12 +184,19 @@ function HomePageContent() {
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-8">
       {/* Hero */}
-      <motion.div variants={itemVariants} className="text-center py-2">
-        <h1 className="font-display text-4xl md:text-5xl font-bold bg-gradient-to-r from-accent via-secondary to-accent bg-clip-text text-transparent">
-          {t("home.heroTitle")}
-        </h1>
-        <p className="mt-3 text-textSecondary text-sm md:text-base">{t("home.heroSubtitle")}</p>
-      </motion.div>
+      <div className="relative pt-4 pb-8 overflow-hidden">
+        <motion.div 
+          className="absolute inset-x-0 mx-auto -top-8 h-64 w-64 rounded-full bg-accent blur-3xl"
+          animate={{ scale: [1, 1.05, 1], opacity: [0.06, 0.08, 0.06] }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div variants={itemVariants} className="text-center py-2 relative z-10">
+          <h1 className="font-display text-4xl md:text-5xl font-semibold tracking-tight bg-gradient-to-br from-accent via-[#FF8C42] to-accent/70 bg-clip-text text-transparent">
+            {t("home.heroTitle")}
+          </h1>
+          <p className="mt-3 text-textSecondary text-sm md:text-base">{t("home.heroSubtitle")}</p>
+        </motion.div>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
         {/* Add Transaction Card */}
@@ -240,10 +247,20 @@ function HomePageContent() {
                       </div>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <Button type="button" onClick={() => void onConfirmParsedTransaction()} disabled={isSavingConfirmed}>{isSavingConfirmed ? t("home.saving") : `${t("home.confirmBtn")} (${confirmCountdown ?? 6}s)`}</Button>
+                      <Button type="button" onClick={() => void onConfirmParsedTransaction()} disabled={isSavingConfirmed}>{isSavingConfirmed ? t("home.saving") : t("home.confirmBtn")}</Button>
                       <Button type="button" variant="ghost" onClick={onEditParsedTransaction}><Pencil className="h-3 w-3 mr-1" />{t("home.edit")}</Button>
                       <Button type="button" variant="ghost" onClick={onCancelParsedTransaction}><X className="h-3 w-3 mr-1" />{t("home.cancel")}</Button>
                     </div>
+                    {confirmCountdown !== null && !isSavingConfirmed && (
+                      <div className="mt-4 w-full h-0.5 bg-accent/10 rounded-full overflow-hidden">
+                        <motion.div
+                          className="h-full bg-accent rounded-full"
+                          initial={{ scaleX: 1, originX: 0 }}
+                          animate={{ scaleX: 0 }}
+                          transition={{ duration: 6, ease: "linear" }}
+                        />
+                      </div>
+                    )}
                   </motion.div>
                 ) : null}
               </AnimatePresence>
@@ -255,8 +272,8 @@ function HomePageContent() {
         </motion.div>
 
         {/* Recent Transactions */}
-        <motion.div variants={itemVariants}>
-          <Card>
+        <motion.div variants={itemVariants} className="h-full">
+          <Card className="h-full">
             <h2 className="mb-4 text-lg font-semibold text-textPrimary flex items-center gap-2">
               <div className="h-2 w-2 rounded-full bg-income" />
               {t("app.recentTransactions")}
@@ -272,18 +289,17 @@ function HomePageContent() {
                 <AnimatePresence>
                   {recentTransactions.map((item, index) => (
                     <motion.li key={item.id} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }} transition={{ delay: index * 0.05 }}
-                      className="group rounded-xl border border-accent/[0.08] bg-white px-4 py-3 transition-colors hover:bg-surface hover:border-accent/15">
+                      className={`group rounded-xl border border-accent/8 bg-white px-4 py-3 transition-colors duration-150 hover:bg-accent/[0.03] border-l-2 ${item.type === "income" ? "border-l-income" : "border-l-expense"}`}>
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-3">
-                          <div className={`h-2 w-2 rounded-full shrink-0 ${item.type === "income" ? "bg-income" : "bg-expense"}`} />
                           <span className="font-medium text-sm text-textPrimary">{item.category}</span>
                         </div>
-                        <span className={`font-mono text-sm font-semibold ${item.type === "income" ? "text-income" : "text-expense"}`}>
+                        <span className={`font-mono tabular-nums text-sm font-semibold ${item.type === "income" ? "text-income" : "text-expense"}`}>
                           {item.type === "income" ? "+" : "-"}{formatCurrency(item.amount)}
                         </span>
                       </div>
-                      <p className="mt-1 text-xs text-textSecondary pl-5">{item.description ?? item.rawInput ?? "-"}</p>
-                      <p className="mt-0.5 text-[10px] text-textSecondary/50 pl-5">{formatDateTime(item.createdAt)}</p>
+                      <p className="mt-1 text-xs text-textSecondary">{item.description ?? item.rawInput ?? "-"}</p>
+                      <p className="mt-0.5 text-[10px] text-textSecondary/50">{formatDateTime(item.createdAt)}</p>
                     </motion.li>
                   ))}
                 </AnimatePresence>

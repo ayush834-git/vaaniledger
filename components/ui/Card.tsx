@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, type HTMLMotionProps } from "framer-motion";
+import { motion, type HTMLMotionProps, useReducedMotion } from "framer-motion";
 
 import { cn } from "@/lib/utils/cn";
 
@@ -9,12 +9,13 @@ type CardProps = HTMLMotionProps<"div"> & {
 };
 
 export const Card = ({ className, children, ...props }: CardProps) => {
+  const prefersReduced = useReducedMotion();
   return (
     <motion.div
-      whileHover={{ y: -2, boxShadow: "0 8px 32px rgba(255,85,0,0.10)" }}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      whileHover={prefersReduced ? {} : { y: -2 }}
+      transition={{ duration: 0.15, ease: "easeOut" }}
       className={cn(
-        "rounded-2xl border border-accent/[0.12] bg-white p-5 shadow-soft",
+        "group rounded-2xl border border-accent/8 bg-white p-6 shadow-resting transition-all duration-150 hover:border-accent/16 hover:shadow-hover",
         className,
       )}
       {...props}

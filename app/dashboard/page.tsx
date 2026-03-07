@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { motion, useMotionValue, animate, AnimatePresence, type Variants } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { MessageCircle, TrendingUp, TrendingDown, IndianRupee, X } from "lucide-react";
+import * as Tooltip from "@radix-ui/react-tooltip";
 
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { ExpensePieChart } from "@/components/charts/ExpensePieChart";
@@ -59,7 +60,7 @@ const buildLast7DaysIncomeExpense = (transactions: TransactionRecord[]) => {
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.08 } },
+  show: { opacity: 1, transition: { staggerChildren: 0.06 } },
 };
 const itemVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -73,10 +74,10 @@ interface InsightUI {
   dismissed: boolean;
 }
 
-const getInsightColor = (type: string) => {
-  if (type === "SPENDING_SPIKE") return "border-l-accent";
-  if (type === "CASHFLOW") return "border-l-income";
-  return "border-l-expense";
+const getInsightDotColor = (type: string) => {
+  if (type === "SPENDING_SPIKE") return "bg-accent";
+  if (type === "CASHFLOW") return "bg-income";
+  return "bg-expense";
 };
 
 export default function DashboardPage() {
@@ -130,9 +131,9 @@ export default function DashboardPage() {
   }, [transactions]);
 
   const summaryCards = [
-    { id: "income", label: t("dashboard.todayIncome"), amount: todaySummary.income, borderColor: "border-l-income", textColor: "text-income", icon: TrendingUp, iconColor: "text-income", gradColor: "#00A86B" },
-    { id: "expense", label: t("dashboard.todayExpense"), amount: todaySummary.expenses, borderColor: "border-l-expense", textColor: "text-expense", icon: TrendingDown, iconColor: "text-expense", gradColor: "#E8003D" },
-    { id: "profit", label: t("dashboard.netProfit"), amount: todaySummary.netProfit, borderColor: "border-l-accent", textColor: "text-accent", icon: IndianRupee, iconColor: "text-accent", gradColor: "#FF5500" },
+    { id: "income", label: t("dashboard.todayIncome"), amount: todaySummary.income, textColor: "text-income", icon: TrendingUp, iconColor: "text-income", gradColor: "#00A86B" },
+    { id: "expense", label: t("dashboard.todayExpense"), amount: todaySummary.expenses, textColor: "text-expense", icon: TrendingDown, iconColor: "text-expense", gradColor: "#E8003D" },
+    { id: "profit", label: t("dashboard.netProfit"), amount: todaySummary.netProfit, textColor: "text-accent", icon: IndianRupee, iconColor: "text-accent", gradColor: "#FF5500" },
   ];
 
   /* Top categories — includes BOTH income and expense */
@@ -192,11 +193,11 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-3">
         {summaryCards.map((card) => (
           <motion.div key={card.id} variants={itemVariants}>
-            <Card className={`border-l-4 ${card.borderColor} relative overflow-hidden`}>
-              <div className="absolute inset-0 opacity-[0.04]" style={{ background: `linear-gradient(135deg, transparent 40%, ${card.gradColor} 100%)` }} />
-              <div className="relative">
+            <Card className="relative overflow-hidden group">
+              <div className="absolute inset-0 opacity-[0.02] transition-opacity group-hover:opacity-[0.04]" style={{ background: `linear-gradient(135deg, transparent 40%, ${card.gradColor} 100%)` }} />
+              <div className="relative flex flex-col">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm text-textSecondary">{card.label}</p>
+                  <p className="text-xs uppercase tracking-widest text-textSecondary">{card.label}</p>
                   <card.icon className={`h-4 w-4 ${card.iconColor}`} />
                 </div>
                 <p className={`font-mono text-3xl font-bold ${card.textColor}`}><AnimatedNumber value={card.amount} /></p>
@@ -217,11 +218,14 @@ export default function DashboardPage() {
                 exit={{ opacity: 0, height: 0, scale: 0.95, overflow: "hidden" }}
                 transition={{ duration: 0.2 }}
               >
-                <Card className={`border-l-4 ${getInsightColor(insight.type)} flex items-center justify-between p-4 py-3 shadow-soft`}>
-                  <p className="text-sm font-medium text-textPrimary">{insight.message}</p>
+                <Card className="group flex items-center justify-between shadow-resting">
+                  <div className="flex items-center gap-3">
+                    <div className={`h-2 w-2 rounded-full shrink-0 ${getInsightDotColor(insight.type)}`} />
+                    <p className="text-sm font-medium text-textPrimary">{insight.message}</p>
+                  </div>
                   <button
                     onClick={() => handleDismiss(insight.id)}
-                    className="ml-4 shrink-0 rounded-lg p-1 text-textSecondary hover:bg-surface hover:text-expense transition"
+                    className="ml-4 shrink-0 rounded-lg p-1 text-textSecondary opacity-0 group-hover:opacity-100 transition-opacity hover:bg-surface hover:text-expense"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -273,7 +277,7 @@ export default function DashboardPage() {
       </motion.div>
 
       <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-12 gap-4">
-        <div className="col-span-1 md:col-span-12 flex flex-col min-h-[260px] [&_>_div]:flex-1 [&_>_div]:flex [&_>_div]:flex-col">
+        <div className="col-span-1 md:col-span-12 flex flex-col min-h-[300px]">
           <ProfitLineChart data={profitTrend} />
         </div>
       </motion.div>
@@ -313,19 +317,52 @@ export default function DashboardPage() {
             <p className="mt-2 text-sm text-textSecondary">{t("dashboard.chatPrompt")}</p>
           </div>
           <div className="mt-4 flex items-end justify-end">
-            <motion.button onClick={() => setIsChatOpen(true)} className="flex h-12 w-12 items-center justify-center rounded-full bg-accent shadow-glow" whileHover={{ scale: 1.1, rotate: 8 }} whileTap={{ scale: 0.95 }}>
-              <MessageCircle className="h-5 w-5 text-white" />
-            </motion.button>
+            <Tooltip.Provider>
+              <Tooltip.Root>
+                <Tooltip.Trigger asChild>
+                  <motion.button onClick={() => setIsChatOpen(true)} className="flex h-14 w-14 items-center justify-center rounded-full bg-accent shadow-resting hover:shadow-hover" whileHover={{ y: -2 }} whileTap={{ scale: 0.95 }}>
+                    <MessageCircle className="h-6 w-6 text-white" />
+                  </motion.button>
+                </Tooltip.Trigger>
+                <Tooltip.Portal>
+                  <Tooltip.Content className="rounded-lg bg-textPrimary px-3 py-1.5 text-xs font-medium text-white shadow-resting" sideOffset={8}>
+                    Ask Vaani
+                    <Tooltip.Arrow className="fill-textPrimary" />
+                  </Tooltip.Content>
+                </Tooltip.Portal>
+              </Tooltip.Root>
+            </Tooltip.Provider>
           </div>
         </Card>
       </motion.div>
 
       <AnimatePresence>
         {!isChatOpen && (
-          <motion.button initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} onClick={() => setIsChatOpen(true)}
-            className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-accent shadow-glow" whileHover={{ scale: 1.1, rotate: 8 }} whileTap={{ scale: 0.95 }}>
-            <MessageCircle className="h-6 w-6 text-white" />
-          </motion.button>
+          <div className="fixed bottom-6 right-6 z-50 flex">
+            <Tooltip.Provider>
+              <Tooltip.Root>
+                <Tooltip.Trigger asChild>
+                  <motion.button 
+                    initial={{ scale: 0, opacity: 0 }} 
+                    animate={{ scale: 1, opacity: 1 }} 
+                    exit={{ scale: 0, opacity: 0 }} 
+                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                    onClick={() => setIsChatOpen(true)}
+                    className="flex h-14 w-14 items-center justify-center rounded-full bg-accent shadow-resting hover:shadow-hover"
+                    whileHover={{ y: -2 }} whileTap={{ scale: 0.95 }}
+                  >
+                    <MessageCircle className="h-6 w-6 text-white" />
+                  </motion.button>
+                </Tooltip.Trigger>
+                <Tooltip.Portal>
+                  <Tooltip.Content className="rounded-lg bg-textPrimary px-3 py-1.5 text-xs font-medium text-white shadow-resting" sideOffset={8}>
+                    Ask Vaani
+                    <Tooltip.Arrow className="fill-textPrimary" />
+                  </Tooltip.Content>
+                </Tooltip.Portal>
+              </Tooltip.Root>
+            </Tooltip.Provider>
+          </div>
         )}
       </AnimatePresence>
 

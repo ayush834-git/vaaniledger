@@ -41,10 +41,10 @@ export const AppHeader = () => {
       initial={{ y: -80, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ type: "spring", stiffness: 260, damping: 25 }}
-      className="sticky top-3 z-50 mx-auto max-w-7xl rounded-2xl border border-accent/12 bg-white px-6 py-3 shadow-soft"
+      className="sticky top-0 z-40 mx-auto w-full border-b border-accent/8 bg-[#FDFAF8]/90 px-4 py-3 backdrop-blur-md sm:px-6"
     >
       {/* Live data pulse bar */}
-      <div className="absolute top-0 left-0 h-[2px] w-full overflow-hidden rounded-t-2xl">
+      <div className="absolute top-0 left-0 h-[2px] w-full overflow-hidden">
         <motion.div
           className="h-full w-full bg-gradient-to-r from-transparent via-accent to-transparent"
           animate={{ x: ["-100%", "100%"] }}
@@ -55,7 +55,7 @@ export const AppHeader = () => {
       <div className="flex items-center justify-between gap-4">
         {/* Logo */}
         <div className="flex items-center gap-3">
-          <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10 border border-accent/20">
+          <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-accent border border-accent/20">
             {isWakeWordListening && (
               <motion.div
                 className="absolute -inset-1 rounded-lg border-2 border-accent/50"
@@ -63,10 +63,10 @@ export const AppHeader = () => {
                 transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
               />
             )}
-            <span className="text-xs font-bold font-mono text-accent relative z-10">VL</span>
+            <span className="text-xs font-bold font-mono text-white relative z-10">VL</span>
           </div>
           <div>
-            <span className="font-display text-lg font-bold text-accent tracking-tight">VaaniLedger</span>
+            <span className="font-display text-lg font-semibold text-accent tracking-tight">VaaniLedger</span>
             <span className="ml-2 hidden text-[10px] text-textSecondary md:inline">{t("app.voiceFirst")}</span>
           </div>
         </div>
@@ -108,12 +108,16 @@ export const AppHeader = () => {
           ) : guest ? (
             <>
               <span className="hidden text-[10px] text-textSecondary/70 lg:flex items-center gap-1.5">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-secondary animate-pulse" />
+                <motion.span 
+                  className="inline-block h-1.5 w-1.5 rounded-full bg-secondary"
+                  animate={{ scale: [1, 1.3, 1] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                />
                 {t("nav.guestMode")}
               </span>
               <button
                 onClick={handleGuestSignIn}
-                className="rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-[#CC4400] shadow-glow"
+                className="rounded-lg border border-accent/20 bg-transparent px-4 py-1.5 text-xs font-medium text-textSecondary transition hover:border-accent/30 hover:text-accent hover:bg-accent/5"
               >
                 {t("nav.signIn")}
               </button>
@@ -121,7 +125,7 @@ export const AppHeader = () => {
           ) : (
             <Link
               href="/auth"
-              className="rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-[#CC4400] shadow-glow"
+              className="rounded-lg border border-accent/20 bg-transparent px-4 py-1.5 text-xs font-medium text-textSecondary transition hover:border-accent/30 hover:text-accent hover:bg-accent/5"
             >
               {t("nav.signIn")}
             </Link>

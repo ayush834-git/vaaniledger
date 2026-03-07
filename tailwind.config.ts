@@ -9,15 +9,15 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        bg: "#FFFBF0",
-        surface: "#FFF5D6",
-        "surface-2": "#FFE8B0",
+        bg: "#FDFAF8",
+        surface: "#FFFFFF",
+        "surface-2": "#F8F6F4",
         accent: "#FF5500",
         secondary: "#D4006A",
         income: "#00A86B",
         expense: "#E8003D",
-        textPrimary: "#1A0A00",
-        textSecondary: "#6B4423",
+        textPrimary: "#111111",
+        textSecondary: "#6B6B6B",
         border: "rgba(255, 85, 0, 0.12)",
       },
       fontFamily: {
@@ -26,8 +26,8 @@ const config: Config = {
         mono: ["var(--font-mono)", "monospace"],
       },
       boxShadow: {
-        soft: "0 4px 24px rgba(255, 85, 0, 0.08)",
-        glow: "0 4px 16px rgba(255, 85, 0, 0.35)",
+        resting: "0 1px 4px rgba(0,0,0,0.06)",
+        hover: "0 4px 16px rgba(255,85,0,0.08)",
       },
       borderRadius: {
         xl: "1rem",

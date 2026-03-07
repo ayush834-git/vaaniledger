@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { useTranslation } from "react-i18next";
-import { Trash2, Download, Search, X, FileText } from "lucide-react";
+import { Trash2, Download, Search, X, FileText, TrendingUp, TrendingDown } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -110,11 +110,7 @@ export default function LedgerPage() {
     finally { setDeletingId(null); }
   };
 
-  const translateType = (type: string) => {
-    if (type === "income") return t("ledger.income");
-    if (type === "expense") return t("ledger.expense");
-    return type;
-  };
+
 
   const exportCSV = () => {
     const d = new Date();
@@ -186,13 +182,13 @@ export default function LedgerPage() {
         </div>
       </motion.div>
 
-      <motion.div variants={itemVariants}>
+      <motion.div variants={itemVariants} className="sticky top-20 z-40 bg-[#FDFAF8]/90 backdrop-blur-md pb-4 pt-2 -mx-4 px-4 sm:mx-0 sm:px-0">
         <Card className="p-4 flex flex-col gap-4">
           <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
             <div className="flex flex-1 w-full relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-textSecondary/50" />
               <input placeholder={t("ledger.search")} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full rounded-xl border border-accent/12 bg-white py-2 pl-10 pr-4 text-sm text-textPrimary outline-none transition placeholder:text-textSecondary/50 focus:border-accent/40 focus:ring-2 focus:ring-accent/15" />
+                className="w-full h-12 rounded-xl border border-accent/12 bg-white py-2 pl-10 pr-4 text-sm text-textPrimary outline-none transition placeholder:text-textSecondary/50 focus:border-accent/40 focus:ring-2 focus:ring-accent/10" />
             </div>
             
             <div className="flex items-center gap-3 shrink-0">
@@ -206,7 +202,7 @@ export default function LedgerPage() {
                   </button>
                 ))}
               </div>
-              <Button type="button" variant="ghost" onClick={exportCSV} className="gap-2 h-9 px-3 border border-accent/12 bg-white hover:bg-surface">
+              <Button type="button" variant="ghost" onClick={exportCSV} className="gap-2 h-10 px-3 border border-accent/12 bg-white hover:bg-surface">
                 <Download className="h-4 w-4" /> {t("ledger.exportCsv")}
               </Button>
             </div>
@@ -216,14 +212,14 @@ export default function LedgerPage() {
             <div className="flex flex-wrap md:flex-nowrap gap-4 items-center w-full md:w-auto">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium text-textSecondary uppercase tracking-wide">Date:</span>
-                <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="rounded-lg border border-accent/12 bg-white px-3 py-1.5 text-sm text-textPrimary outline-none focus:border-accent/40" />
+                <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="rounded-xl h-10 border border-accent/12 bg-white px-3 py-1.5 text-sm text-textPrimary outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10" />
                 <span className="text-xs text-textSecondary">to</span>
-                <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="rounded-lg border border-accent/12 bg-white px-3 py-1.5 text-sm text-textPrimary outline-none focus:border-accent/40" />
+                <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="rounded-xl h-10 border border-accent/12 bg-white px-3 py-1.5 text-sm text-textPrimary outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10" />
               </div>
 
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium text-textSecondary uppercase tracking-wide">Sort:</span>
-                <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value as typeof sortOrder)} className="rounded-lg border border-accent/12 bg-white px-3 py-1.5 text-sm text-textPrimary outline-none focus:border-accent/40">
+                <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value as typeof sortOrder)} className="rounded-xl h-10 border border-accent/12 bg-white px-3 py-1.5 text-sm text-textPrimary outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10">
                   <option value="newest">{t("ledger.sort.newest")}</option>
                   <option value="oldest">{t("ledger.sort.oldest")}</option>
                   <option value="amount_high">{t("ledger.sort.amountHigh")}</option>
@@ -244,42 +240,59 @@ export default function LedgerPage() {
       {errorMessage ? <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-expense">{errorMessage}</motion.p> : null}
       {successMessage ? <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-income">{successMessage}</motion.p> : null}
 
-      <motion.div variants={itemVariants}>
-        <Card className="overflow-hidden !p-0">
-          <div className="hidden md:grid grid-cols-[1.2fr_0.6fr_1fr_2fr_1fr_0.5fr] gap-2 border-b border-accent/[0.08] bg-surface px-5 py-3 text-xs font-medium text-textSecondary uppercase tracking-wider">
-            <span>{t("common.date")}</span><span>{t("common.type")}</span><span>{t("common.category")}</span><span>{t("common.description")}</span><span className="text-right">{t("common.amount")}</span><span className="text-right">{t("common.actions")}</span>
-          </div>
-
-          {filteredTransactions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="h-12 w-12 rounded-full bg-accent/5 border border-accent/12 flex items-center justify-center mb-3"><span className="text-2xl">📋</span></div>
-              <p className="text-sm text-textSecondary">{t("ledger.empty")}</p>
+      <motion.div variants={itemVariants} className="space-y-4">
+        {filteredTransactions.length === 0 ? (
+          <Card className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="h-16 w-16 mb-4 flex items-center justify-center rounded-2xl bg-accent/5">
+              <span className="text-3xl">💳</span>
             </div>
-          ) : (
-            <div className="divide-y divide-accent/[0.06]">
-              <AnimatePresence>
-                {filteredTransactions.map((item, index) => (
-                  <motion.div key={item.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, height: 0 }} transition={{ delay: index * 0.02 }}
-                    className="group grid grid-cols-1 md:grid-cols-[1.2fr_0.6fr_1fr_2fr_1fr_0.5fr] gap-1 md:gap-2 px-5 py-3 items-center transition-colors hover:bg-surface">
-                    <span className="text-xs text-textSecondary">{formatDateTime(item.createdAt)}</span>
-                    <span className={`text-xs font-semibold ${item.type === "income" ? "text-income" : "text-expense"}`}>{translateType(item.type)}</span>
-                    <span className="text-sm text-textPrimary">{item.category}</span>
-                    <span className="text-sm text-textSecondary truncate">{item.description ?? item.rawInput ?? "-"}</span>
-                    <span className={`text-sm font-mono font-semibold text-right ${item.type === "income" ? "text-income" : "text-expense"}`}>{item.type === "income" ? "+" : "-"}{formatCurrency(item.amount)}</span>
-                    <div className="flex justify-end">
-                      <motion.button type="button" whileTap={{ scale: 0.9 }} onClick={() => void onDelete(item.id)} disabled={deletingId === item.id}
-                        className="flex h-7 w-7 items-center justify-center rounded-lg text-textSecondary/60 transition hover:bg-expense/10 hover:text-expense disabled:opacity-50" aria-label="Delete">
-                        {deletingId === item.id ? (
-                          <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="h-3.5 w-3.5 rounded-full border border-expense border-t-transparent" />
-                        ) : (<Trash2 className="h-3.5 w-3.5" />)}
-                      </motion.button>
+            <p className="text-textSecondary">{t("ledger.empty")}</p>
+          </Card>
+        ) : (
+          <AnimatePresence>
+            {filteredTransactions.map((item) => (
+              <motion.div 
+                key={item.id} 
+                initial={{ opacity: 0, scale: 0.98, y: 10 }} 
+                animate={{ opacity: 1, scale: 1, y: 0 }} 
+                exit={{ opacity: 0, scale: 0.95, height: 0 }} 
+                transition={{ duration: 0.2 }}
+              >
+                <Card className={`group flex flex-col md:flex-row md:items-center justify-between p-4 py-4 shadow-resting border-l-4 ${item.type === "income" ? "border-l-income" : "border-l-expense"}`}>
+                  <div className="flex items-center gap-4">
+                    <div className={`h-12 w-12 flex shrink-0 items-center justify-center rounded-2xl bg-surface ${item.type === "income" ? "text-income" : "text-expense"}`}>
+                      {item.type === "income" ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
                     </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
-          )}
-        </Card>
+                    <div>
+                      <p className="font-medium text-base text-textPrimary">{item.category}</p>
+                      <p className="mt-0.5 text-sm text-textSecondary">{item.description || item.rawInput || "-"}</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 md:mt-0 flex items-center justify-between md:justify-end gap-6 ml-16 md:ml-0">
+                    <div className="flex flex-col md:items-end gap-1">
+                      <span className={`font-mono text-lg font-bold ${item.type === "income" ? "text-income" : "text-expense"}`}>
+                        {item.type === "income" ? "+" : "-"}{formatCurrency(item.amount)}
+                      </span>
+                      <span className="text-xs text-textSecondary">{formatDateTime(item.createdAt)}</span>
+                    </div>
+                    <motion.button 
+                      type="button" 
+                      whileTap={{ scale: 0.9 }} 
+                      onClick={() => void onDelete(item.id)} 
+                      disabled={deletingId === item.id}
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-textSecondary opacity-100 md:opacity-0 group-hover:opacity-100 transition-all hover:bg-expense/10 hover:text-expense disabled:opacity-50" 
+                      aria-label="Delete"
+                    >
+                      {deletingId === item.id ? (
+                        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="h-4 w-4 rounded-full border border-expense border-t-transparent" />
+                      ) : (<Trash2 className="h-4 w-4" />)}
+                    </motion.button>
+                  </div>
+                </Card>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        )}
       </motion.div>
     </motion.div>
   );
