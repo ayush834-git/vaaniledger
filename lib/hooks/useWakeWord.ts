@@ -84,8 +84,8 @@ export const useWakeWord = (isPaused: boolean, onWakeWordDetected: () => void) =
     }
 
     const recognition = new Recognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
+    recognition.continuous = false;
+    recognition.interimResults = false;
     recognition.lang = "en-IN"; // English/Hindi hybrid common context
     
     recognition.onresult = (event) => {
@@ -97,13 +97,15 @@ export const useWakeWord = (isPaused: boolean, onWakeWordDetected: () => void) =
       }
       
       const normalized = transcript.toLowerCase().trim();
-      
       const isMatch = WAKE_WORDS.some(word => normalized.includes(word));
       if (isMatch && !isPausedRef.current) {
-          onDetectedRef.current();
-          // Pause immediately so we don't spam while waiting for React state to update
           isPausedRef.current = true;
           try { recognition.stop(); } catch {}
+          
+          // Yield the microphone briefly before navigating so the transaction mic doesn't crash
+          setTimeout(() => {
+              onDetectedRef.current();
+          }, 300);
       }
     };
 
