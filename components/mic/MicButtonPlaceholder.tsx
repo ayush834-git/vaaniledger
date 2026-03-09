@@ -63,6 +63,11 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
   const [transcript, setTranscript] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    setIsMobile(/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768);
+  }, []);
 
   const { energyLevel, startVAD, stopVAD } = useSmartVAD({
     onSilenceDetected: () => {
@@ -178,7 +183,7 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
     if (!Recognition) { setIsSupported(false); return; }
 
     const recognition = new Recognition();
-    recognition.continuous = true;
+    recognition.continuous = !isMobile;
     recognition.interimResults = true;
     recognition.lang = speechLocale;
     recognition.maxAlternatives = 3;
@@ -210,7 +215,7 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
         shouldRestartRef.current = false;
         submittedOnStopRef.current = false;
         setIsRecording(false);
-        stopVAD();
+        if (!isMobile) stopVAD();
         return;
       }
       shouldRestartRef.current = false;
@@ -222,7 +227,7 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
     };
 
     recognition.onend = () => {
-      if (shouldRestartRef.current) {
+      if (shouldRestartRef.current && !isMobile) {
         try {
           // Add a small delay to ensure the speech recognition has fully stopped before restarting
           setTimeout(() => {
@@ -245,6 +250,14 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
         }
       }
       setIsRecording(false);
+      // For mobile, submit if there's any transcript since it auto stops
+      if (isMobile) {
+        const input = finalTranscriptRef.current || liveTranscriptRef.current;
+        if (input) {
+          void parseTranscriptRef.current(input);
+        }
+        return;
+      }
       if (!submittedOnStopRef.current) return;
       submittedOnStopRef.current = false;
       void parseTranscriptRef.current(finalTranscriptRef.current || liveTranscriptRef.current);
@@ -252,7 +265,7 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
 
     recognitionRef.current = recognition;
     return () => { recognition.stop(); recognitionRef.current = null; };
-  }, [speechLocale]);
+  }, [speechLocale, isMobile]);
 
   const onMicClick = () => {
     if (!isSupported || !recognitionRef.current || isProcessing) return;
@@ -261,7 +274,7 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
       submittedOnStopRef.current = false;
       setIsRecording(false);
       try { recognitionRef.current.stop(); } catch {}
-      stopVAD();
+      if (!isMobile) stopVAD();
       const input = finalTranscriptRef.current || liveTranscriptRef.current;
       if (input) {
         void parseTranscript(input);
@@ -278,7 +291,7 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
       setErrorMessage(null);
       setSuccessMessage(null);
       submittedOnStopRef.current = false;
-      shouldRestartRef.current = true;
+      shouldRestartRef.current = !isMobile;
       setIsRecording(true);
       
       // Wrap start in try-catch to handle immediate errors
@@ -289,15 +302,15 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
         shouldRestartRef.current = false;
         submittedOnStopRef.current = false;
         setIsRecording(false);
-        stopVAD();
+        if (!isMobile) stopVAD();
         setErrorMessage("Microphone access denied or unavailable.");
         return;
       }
       
-      startVAD();
+      if (!isMobile) startVAD();
     } catch {
       setIsRecording(false);
-      stopVAD();
+      if (!isMobile) stopVAD();
       shouldRestartRef.current = false;
       submittedOnStopRef.current = false;
       setErrorMessage("Microphone access denied or unavailable.");
@@ -336,14 +349,16 @@ export const MicButtonPlaceholder = ({ onTransactionParsed, savedSignal = 0 }: M
 
       <div className="flex h-12 items-center justify-center gap-[3px]">
         {[0.4, 0.9, 1.3, 0.9, 0.4].map((h, i) => {
-          const safeEnergy = isRecording ? Math.max(0.1, energyLevel) : 0;
-          const barHeight = isRecording ? 4 + safeEnergy * 40 * h : 4;
+          // If mobile and recording, use random energy for a cool visual since VAD is disabled
+          const simulatedEnergy = isRecording ? 0.3 + Math.random() * 0.4 : 0;
+          const safeEnergy = isRecording && !isMobile ? Math.max(0.1, energyLevel) : simulatedEnergy;
+          const barHeight = isRecording && !isMobile ? 4 + safeEnergy * 40 * h : (isRecording ? 4 + safeEnergy * 30 * h : 4);
           return (
             <motion.div
               key={i}
               className={`w-1.5 rounded-full ${isRecording ? "bg-accent opacity-100" : "bg-textSecondary opacity-30"}`}
               animate={{ height: barHeight }}
-              transition={{ type: "tween", duration: 0.1 }}
+              transition={{ type: "tween", duration: isMobile ? 0.2 : 0.1 }}
             />
           );
         })}
