@@ -138,7 +138,7 @@ export default function LedgerPage() {
 
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-6">
-      <motion.div variants={itemVariants} className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between z-10 relative">
+      <motion.div variants={itemVariants} className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between z-50 relative">
         <div>
           <h2 className="font-display text-3xl font-bold text-textPrimary">{t("ledger.title")}</h2>
           <p className="mt-1 text-sm text-textSecondary">
