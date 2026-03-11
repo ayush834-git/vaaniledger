@@ -3,6 +3,8 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 
+import PDFDocument from "pdfkit";
+
 import { resolveUserId } from "@/lib/auth/resolveUserId";
 import { prisma } from "@/lib/db/prisma";
 import { generateChatReply } from "@/lib/ai/gemini";
@@ -93,7 +95,6 @@ Keep it professional but concise.`;
     // Generate PDF
     const pdfBuffer = await new Promise<Buffer>((resolve, reject) => {
       try {
-        const PDFDocument = eval('require("pdfkit")');
         const doc = new PDFDocument({ margin: 50 });
         const buffers: Buffer[] = [];
         doc.on("data", buffers.push.bind(buffers));

@@ -3,7 +3,9 @@ import withPWAInit from "next-pwa";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  serverExternalPackages: ["pdfkit"],
+  experimental: {
+    serverComponentsExternalPackages: ["pdfkit"],
+  },
 };
 
 const withPWA = withPWAInit({
