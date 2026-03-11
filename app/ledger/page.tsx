@@ -147,13 +147,13 @@ export default function LedgerPage() {
         </div>
         
         <div className="relative">
-          <Button onClick={() => setReportPickerOpen((prev) => !prev)} className="gap-2 shrink-0">
+          <Button onClick={() => setReportPickerOpen((prev) => !prev)} className="gap-2 shrink-0 w-full md:w-auto justify-center">
             <FileText className="h-4 w-4" /> {t("ledger.downloadReport")}
           </Button>
 
           <AnimatePresence>
             {reportPickerOpen && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.15 }} className="absolute right-0 top-full mt-2 w-64 rounded-xl border border-accent/12 bg-white p-4 shadow-xl z-50">
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.15 }} className="absolute left-0 md:left-auto md:right-0 top-full mt-2 w-64 rounded-xl border border-accent/12 bg-white p-4 shadow-xl z-50">
                 <div className="flex justify-between items-center mb-3">
                   <h3 className="text-sm font-semibold text-textPrimary">{t("ledger.selectMonth")}</h3>
                   <button onClick={() => setReportPickerOpen(false)} className="text-textSecondary hover:text-textPrimary bg-surface rounded-md p-1">
@@ -184,17 +184,17 @@ export default function LedgerPage() {
 
       <motion.div variants={itemVariants} className="sticky top-20 z-40 bg-[#FDFAF8]/90 backdrop-blur-md pb-4 pt-2 -mx-4 px-4 sm:mx-0 sm:px-0">
         <Card className="p-4 flex flex-col gap-4">
-          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+          <div className="flex flex-col gap-4">
             <div className="flex flex-1 w-full relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-textSecondary/50" />
               <input placeholder={t("ledger.search")} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full h-12 rounded-xl border border-accent/12 bg-white py-2 pl-10 pr-4 text-sm text-textPrimary outline-none transition placeholder:text-textSecondary/50 focus:border-accent/40 focus:ring-2 focus:ring-accent/10" />
             </div>
             
-            <div className="flex items-center gap-3 shrink-0">
-              <div className="flex gap-1 rounded-xl border border-accent/12 bg-surface p-1">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="flex gap-1 rounded-xl border border-accent/12 bg-surface p-1 overflow-x-auto">
                 {filters.map((f) => (
-                  <button key={f.key} type="button" onClick={() => setFilterType(f.key)} className="relative px-4 py-1.5 text-sm font-medium transition-colors">
+                  <button key={f.key} type="button" onClick={() => setFilterType(f.key)} className="relative px-4 py-1.5 text-sm font-medium transition-colors whitespace-nowrap flex-1 sm:flex-none">
                     {filterType === f.key && (
                       <motion.span layoutId="filter-pill" className="absolute inset-0 rounded-lg bg-accent" transition={{ type: "spring", stiffness: 300, damping: 30 }} />
                     )}
@@ -202,24 +202,24 @@ export default function LedgerPage() {
                   </button>
                 ))}
               </div>
-              <Button type="button" variant="ghost" onClick={exportCSV} className="gap-2 h-10 px-3 border border-accent/12 bg-white hover:bg-surface">
+              <Button type="button" variant="ghost" onClick={exportCSV} className="gap-2 h-10 px-3 border border-accent/12 bg-white hover:bg-surface justify-center sm:justify-start">
                 <Download className="h-4 w-4" /> {t("ledger.exportCsv")}
               </Button>
             </div>
           </div>
           
-          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-            <div className="flex flex-wrap md:flex-nowrap gap-4 items-center w-full md:w-auto">
-              <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row gap-3 w-full">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-medium text-textSecondary uppercase tracking-wide">Date:</span>
-                <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="rounded-xl h-10 border border-accent/12 bg-white px-3 py-1.5 text-sm text-textPrimary outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10" />
+                <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="rounded-xl h-10 border border-accent/12 bg-white px-3 py-1.5 text-sm text-textPrimary outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10 flex-1 min-w-[130px]" />
                 <span className="text-xs text-textSecondary">to</span>
-                <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="rounded-xl h-10 border border-accent/12 bg-white px-3 py-1.5 text-sm text-textPrimary outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10" />
+                <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="rounded-xl h-10 border border-accent/12 bg-white px-3 py-1.5 text-sm text-textPrimary outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10 flex-1 min-w-[130px]" />
               </div>
 
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium text-textSecondary uppercase tracking-wide">Sort:</span>
-                <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value as typeof sortOrder)} className="rounded-xl h-10 border border-accent/12 bg-white px-3 py-1.5 text-sm text-textPrimary outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10">
+                <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value as typeof sortOrder)} className="rounded-xl h-10 border border-accent/12 bg-white px-3 py-1.5 text-sm text-textPrimary outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10 flex-1">
                   <option value="newest">{t("ledger.sort.newest")}</option>
                   <option value="oldest">{t("ledger.sort.oldest")}</option>
                   <option value="amount_high">{t("ledger.sort.amountHigh")}</option>

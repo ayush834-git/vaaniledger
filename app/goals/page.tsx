@@ -92,7 +92,7 @@ export default function GoalsPage() {
 
       <Card>
         <h2 className="text-lg font-semibold text-textPrimary mb-4">Add or Update Goal</h2>
-        <form onSubmit={handleSaveGoal} className="flex gap-4 items-end">
+        <form onSubmit={handleSaveGoal} className="flex flex-col sm:flex-row gap-4 sm:items-end">
           <div className="flex-1 space-y-1">
             <label className="text-sm text-textSecondary">Category</label>
             <input
@@ -117,7 +117,7 @@ export default function GoalsPage() {
               required
             />
           </div>
-          <Button type="submit" disabled={isAdding}>
+          <Button type="submit" disabled={isAdding} className="w-full sm:w-auto justify-center">
             <Plus className="h-4 w-4 mr-2" /> Save
           </Button>
         </form>

@@ -3,8 +3,6 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 
-import PDFDocument from "pdfkit";
-
 import { resolveUserId } from "@/lib/auth/resolveUserId";
 import { prisma } from "@/lib/db/prisma";
 import { generateChatReply } from "@/lib/ai/gemini";
@@ -95,6 +93,7 @@ Keep it professional but concise.`;
     // Generate PDF
     const pdfBuffer = await new Promise<Buffer>((resolve, reject) => {
       try {
+        const PDFDocument = eval('require("pdfkit")');
         const doc = new PDFDocument({ margin: 50 });
         const buffers: Buffer[] = [];
         doc.on("data", buffers.push.bind(buffers));
@@ -107,14 +106,14 @@ Keep it professional but concise.`;
         doc.fontSize(16).font("Helvetica").text(`Monthly P&L Report: ${startDate.toLocaleString("default", { month: "long", year: "numeric" })}`, { align: "center" });
         doc.moveDown(2);
 
-        // Summary Boxes Setup (Simple text format)
+        // Summary
         doc.fontSize(14).font("Helvetica-Bold").text("Executive Summary");
         doc.moveDown(0.5);
 
-        doc.fontSize(12).font("Helvetica")
-           .text(`Total Income:   +${formatCurrency(totals.income)}`, { continued: true })
-           .text(`    Total Expenses:   -${formatCurrency(totals.expenses)}`, { continued: true })
-           .text(`    Net Profit:   ${totals.netProfit >= 0 ? "+" : "-"}${formatCurrency(Math.abs(totals.netProfit))}`);
+        doc.fontSize(12).font("Helvetica");
+        doc.text(`Total Income:    +${formatCurrency(totals.income)}`);
+        doc.text(`Total Expenses:  -${formatCurrency(totals.expenses)}`);
+        doc.text(`Net Profit:      ${totals.netProfit >= 0 ? "+" : "-"}${formatCurrency(Math.abs(totals.netProfit))}`);
         doc.moveDown(2);
 
         doc.fontSize(14).font("Helvetica-Bold").text("AI Financial Narrative");
@@ -132,66 +131,86 @@ Keep it professional but concise.`;
         doc.moveDown(1);
         
         const catBreakdown = Object.values(categoryBreakdownMap).sort((a,b) => b.totalExpense - a.totalExpense);
+
+        // Category table columns: Category(50-190), Income(200-290), Expense(300-390), Count(400-450)
+        const catCols = [
+          { x: 50, w: 140, label: "Category" },
+          { x: 200, w: 90, label: "Income" },
+          { x: 300, w: 90, label: "Expense" },
+          { x: 400, w: 50, label: "Count" },
+        ];
+
         if (catBreakdown.length === 0) {
           doc.fontSize(12).font("Helvetica").text("No categories found.");
         } else {
-           doc.fontSize(12).font("Helvetica-Bold");
-           doc.text("Category", 50, doc.y, { continued: true, width: 150 });
-           doc.text("Income", 200, doc.y, { continued: true, width: 100 });
-           doc.text("Expense", 300, doc.y, { continued: true, width: 100 });
-           doc.text("Count", 400, doc.y, { width: 50 });
-           doc.moveDown(0.5);
-           
-           doc.font("Helvetica");
-           catBreakdown.forEach(c => {
-             doc.text(c.category, 50, doc.y, { continued: true, width: 150 });
-             doc.text(formatCurrency(c.totalIncome), 200, doc.y, { continued: true, width: 100 });
-             doc.text(formatCurrency(c.totalExpense), 300, doc.y, { continued: true, width: 100 });
-             doc.text(c.txCount.toString(), 400, doc.y, { width: 50 });
-             doc.moveDown(0.2);
-           });
+          // Header
+          let rowY = doc.y;
+          doc.fontSize(12).font("Helvetica-Bold");
+          for (const col of catCols) {
+            doc.text(col.label, col.x, rowY, { width: col.w });
+          }
+          doc.y = rowY + 18;
+          doc.moveDown(0.3);
+
+          // Rows
+          doc.font("Helvetica");
+          for (const c of catBreakdown) {
+            rowY = doc.y;
+            doc.text(c.category, catCols[0].x, rowY, { width: catCols[0].w });
+            doc.text(formatCurrency(c.totalIncome), catCols[1].x, rowY, { width: catCols[1].w });
+            doc.text(formatCurrency(c.totalExpense), catCols[2].x, rowY, { width: catCols[2].w });
+            doc.text(c.txCount.toString(), catCols[3].x, rowY, { width: catCols[3].w });
+            doc.y = rowY + 16;
+          }
         }
         
         doc.moveDown(2);
 
-        doc.fontSize(16).font("Helvetica-Bold").text("Transactions", 50, doc.y);
+        doc.fontSize(16).font("Helvetica-Bold").text("Transactions", 50);
         doc.moveDown(1);
+
+        // Transaction table columns
+        const txCols = [
+          { x: 50, w: 90, label: "Date" },
+          { x: 145, w: 90, label: "Category" },
+          { x: 240, w: 60, label: "Type" },
+          { x: 305, w: 70, label: "Amount" },
+          { x: 380, w: 160, label: "Description" },
+        ];
 
         if (transactions.length === 0) {
           doc.fontSize(12).font("Helvetica").text("No transactions found.");
         } else {
-           doc.fontSize(12).font("Helvetica-Bold");
-           doc.text("Date", 50, doc.y, { continued: true, width: 100 });
-           doc.text("Category", 150, doc.y, { continued: true, width: 100 });
-           doc.text("Type", 250, doc.y, { continued: true, width: 80 });
-           doc.text("Amount", 330, doc.y, { continued: true, width: 80 });
-           doc.text("Description", 410, doc.y, { width: 130 });
-           doc.moveDown(0.5);
-           
-           doc.font("Helvetica");
-           transactions.forEach(t => {
-             // Handle pagination if near end of page
-             if (doc.y > 700) {
-               doc.addPage();
-               doc.fontSize(12).font("Helvetica-Bold");
-               doc.text("Date", 50, doc.y, { continued: true, width: 100 });
-               doc.text("Category", 150, doc.y, { continued: true, width: 100 });
-               doc.text("Type", 250, doc.y, { continued: true, width: 80 });
-               doc.text("Amount", 330, doc.y, { continued: true, width: 80 });
-               doc.text("Description", 410, doc.y, { width: 130 });
-               doc.moveDown(0.5);
-               doc.font("Helvetica");
-             }
-             
-             // Check if t.createdAt is a Date object, fallback to string if necessary, but formatDateTime should handle date objects
-             const dateStr = formatDateTime(t.createdAt).split(",")[0] || "-";
-             doc.text(dateStr, 50, doc.y, { continued: true, width: 100 });
-             doc.text(t.category, 150, doc.y, { continued: true, width: 100 });
-             doc.text(t.type, 250, doc.y, { continued: true, width: 80 });
-             doc.text(formatCurrency(Number(t.amount)), 330, doc.y, { continued: true, width: 80 });
-             doc.text(t.description || t.rawInput || "-", 410, doc.y, { width: 130 });
-             doc.moveDown(0.2);
-           });
+          // Header helper
+          const drawTxHeader = () => {
+            const hy = doc.y;
+            doc.fontSize(12).font("Helvetica-Bold");
+            for (const col of txCols) {
+              doc.text(col.label, col.x, hy, { width: col.w });
+            }
+            doc.y = hy + 18;
+            doc.moveDown(0.3);
+            doc.font("Helvetica");
+          };
+
+          drawTxHeader();
+
+          for (const tx of transactions) {
+            // Handle pagination
+            if (doc.y > 700) {
+              doc.addPage();
+              drawTxHeader();
+            }
+            
+            const rowY = doc.y;
+            const dateStr = formatDateTime(tx.createdAt).split(",")[0] || "-";
+            doc.text(dateStr, txCols[0].x, rowY, { width: txCols[0].w });
+            doc.text(tx.category, txCols[1].x, rowY, { width: txCols[1].w });
+            doc.text(tx.type, txCols[2].x, rowY, { width: txCols[2].w });
+            doc.text(formatCurrency(Number(tx.amount)), txCols[3].x, rowY, { width: txCols[3].w });
+            doc.text((tx.description || tx.rawInput || "-").substring(0, 30), txCols[4].x, rowY, { width: txCols[4].w });
+            doc.y = rowY + 16;
+          }
         }
 
         doc.end();

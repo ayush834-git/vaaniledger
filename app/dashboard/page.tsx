@@ -225,7 +225,7 @@ export default function DashboardPage() {
                   </div>
                   <button
                     onClick={() => handleDismiss(insight.id)}
-                    className="ml-4 shrink-0 rounded-lg p-1 text-textSecondary opacity-0 group-hover:opacity-100 transition-opacity hover:bg-surface hover:text-expense"
+                    className="ml-4 shrink-0 rounded-lg p-1 text-textSecondary opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity hover:bg-surface hover:text-expense"
                   >
                     <X className="h-4 w-4" />
                   </button>

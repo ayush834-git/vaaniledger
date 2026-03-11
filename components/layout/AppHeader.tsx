@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { href: "/", labelKey: "nav.home" },
   { href: "/dashboard", labelKey: "nav.dashboard" },
   { href: "/ledger", labelKey: "nav.ledger" },
+  { href: "/goals", labelKey: "Goals" },
 ];
 
 const subscribeGuest = (cb: () => void) => {
