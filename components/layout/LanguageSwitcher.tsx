@@ -23,12 +23,12 @@ export const LanguageSwitcher = () => {
   };
 
   return (
-    <div className="inline-flex items-center gap-1 rounded-full border border-accent/8 bg-white/50 p-1 backdrop-blur-sm">
+    <div className="inline-flex max-w-full flex-wrap items-center gap-0.5 rounded-full border border-accent/8 bg-white/50 p-0.5 backdrop-blur-sm sm:gap-1 sm:p-1">
       {supportedLngs.map((lang) => (
         <button
           key={lang}
           className={cn(
-            "rounded-lg px-2 py-1 text-xs font-medium transition-colors duration-200",
+            "rounded-lg px-1.5 py-1 text-[11px] font-medium transition-colors duration-200 sm:px-2 sm:text-xs",
             active === lang
               ? "bg-accent text-white shadow-resting"
               : "bg-transparent text-textSecondary hover:text-accent hover:bg-accent/5",

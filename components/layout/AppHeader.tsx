@@ -42,7 +42,7 @@ export const AppHeader = () => {
       initial={{ y: -80, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ type: "spring", stiffness: 260, damping: 25 }}
-      className="sticky top-0 z-40 mx-auto w-full border-b border-accent/8 bg-[#FDFAF8]/90 px-4 py-3 backdrop-blur-md sm:px-6"
+      className="sticky top-0 z-40 mx-auto w-full border-b border-accent/8 bg-[#FDFAF8]/90 px-3 py-3 backdrop-blur-md sm:px-6"
     >
       {/* Live data pulse bar */}
       <div className="absolute top-0 left-0 h-[2px] w-full overflow-hidden">
@@ -53,9 +53,9 @@ export const AppHeader = () => {
         />
       </div>
 
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
         {/* Logo */}
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-accent border border-accent/20">
             {isWakeWordListening && (
               <motion.div
@@ -66,8 +66,8 @@ export const AppHeader = () => {
             )}
             <span className="text-xs font-bold font-mono text-white relative z-10">VL</span>
           </div>
-          <div>
-            <span className="font-display text-lg font-semibold text-accent tracking-tight">VaaniLedger</span>
+          <div className="min-w-0">
+            <span className="block truncate font-display text-lg font-semibold tracking-tight text-accent">VaaniLedger</span>
             <span className="ml-2 hidden text-[10px] text-textSecondary md:inline">{t("app.voiceFirst")}</span>
           </div>
         </div>
@@ -94,7 +94,7 @@ export const AppHeader = () => {
         </nav>
 
         {/* Right side: lang + auth */}
-        <div className="flex items-center gap-3">
+        <div className="ml-auto flex max-w-full items-center gap-2 sm:gap-3">
           <LanguageSwitcher />
           {status === "authenticated" ? (
             <>
@@ -118,7 +118,7 @@ export const AppHeader = () => {
               </span>
               <button
                 onClick={handleGuestSignIn}
-                className="rounded-lg border border-accent/20 bg-transparent px-4 py-1.5 text-xs font-medium text-textSecondary transition hover:border-accent/30 hover:text-accent hover:bg-accent/5"
+                className="rounded-lg border border-accent/20 bg-transparent px-3 py-1.5 text-xs font-medium text-textSecondary transition hover:border-accent/30 hover:text-accent hover:bg-accent/5 sm:px-4"
               >
                 {t("nav.signIn")}
               </button>
@@ -126,7 +126,7 @@ export const AppHeader = () => {
           ) : (
             <Link
               href="/auth"
-              className="rounded-lg border border-accent/20 bg-transparent px-4 py-1.5 text-xs font-medium text-textSecondary transition hover:border-accent/30 hover:text-accent hover:bg-accent/5"
+              className="rounded-lg border border-accent/20 bg-transparent px-3 py-1.5 text-xs font-medium text-textSecondary transition hover:border-accent/30 hover:text-accent hover:bg-accent/5 sm:px-4"
             >
               {t("nav.signIn")}
             </Link>
@@ -135,11 +135,11 @@ export const AppHeader = () => {
       </div>
 
       {/* Mobile nav */}
-      <nav className="mt-3 flex items-center gap-1 md:hidden">
+      <nav className="mt-3 flex flex-wrap items-center gap-1 md:hidden">
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href;
           return (
-            <Link key={item.href} href={item.href} className="relative px-3 py-1.5 text-xs font-medium transition-colors">
+            <Link key={item.href} href={item.href} className="relative whitespace-nowrap px-3 py-1.5 text-xs font-medium transition-colors">
               {isActive && (
                 <motion.span
                   layoutId="nav-indicator-mobile"

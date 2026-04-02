@@ -7,6 +7,7 @@ import { Plus, Trash2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useTransactions } from "@/lib/hooks/useTransactions";
+import type { GoalResponse } from "@/lib/types/api";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
 import type { BudgetGoalRecord } from "@/lib/types/domain";
 
@@ -14,6 +15,8 @@ export default function GoalsPage() {
   const { transactions } = useTransactions();
   const [goals, setGoals] = useState<BudgetGoalRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [categoryInput, setCategoryInput] = useState("");
   const [amountInput, setAmountInput] = useState("");
@@ -24,37 +27,51 @@ export default function GoalsPage() {
       .then((res) => res.json())
       .then((data) => {
         if (data.ok) setGoals(data.data);
+        else setErrorMessage(data.error?.message ?? "Failed to load goals.");
       })
+      .catch(() => setErrorMessage("Failed to load goals."))
       .finally(() => setIsLoading(false));
   }, []);
 
   const handleSaveGoal = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!categoryInput || !amountInput) return;
+    const category = categoryInput.trim();
+    const amount = Number.parseFloat(amountInput);
+
+    if (!category || !Number.isFinite(amount) || amount < 0) {
+      setErrorMessage("Enter a valid category and monthly amount.");
+      return;
+    }
 
     setIsAdding(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
     try {
-      const amount = parseFloat(amountInput);
       const res = await fetch("/api/goals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category: categoryInput, amount }),
+        body: JSON.stringify({ category, amount }),
       });
-      const data = await res.json();
-      if (data.ok) {
-        // Optimistically update
-        setGoals((prev) => {
-          const exists = prev.findIndex((g) => g.id === data.data.id || g.category === data.data.category);
-          if (exists >= 0) {
-            const copy = [...prev];
-            copy[exists] = data.data;
-            return copy;
-          }
-          return [...prev, data.data];
-        });
-        setCategoryInput("");
-        setAmountInput("");
+
+      const data = (await res.json()) as GoalResponse;
+      if (!res.ok || !data.ok) {
+        throw new Error(data.ok ? "Failed to save goal." : data.error.message);
       }
+
+      setGoals((prev) => {
+        const exists = prev.findIndex((g) => g.id === data.data.id || g.category === data.data.category);
+        if (exists >= 0) {
+          const copy = [...prev];
+          copy[exists] = data.data;
+          return copy;
+        }
+        return [...prev, data.data];
+      });
+      setCategoryInput("");
+      setAmountInput("");
+      setSuccessMessage("Goal saved.");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Failed to save goal.");
     } finally {
       setIsAdding(false);
     }
@@ -121,6 +138,8 @@ export default function GoalsPage() {
             <Plus className="h-4 w-4 mr-2" /> Save
           </Button>
         </form>
+        {errorMessage ? <p className="mt-3 text-sm text-expense">{errorMessage}</p> : null}
+        {successMessage ? <p className="mt-3 text-sm text-income">{successMessage}</p> : null}
       </Card>
 
       <div className="space-y-3">

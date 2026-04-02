@@ -9,8 +9,19 @@ import { resolveUserId } from "@/lib/auth/resolveUserId";
 import { prisma } from "@/lib/db/prisma";
 import { generateChatReply } from "@/lib/ai/gemini";
 import type { ChatContextPayload } from "@/lib/ai/prompts";
-import { formatCurrency } from "@/lib/utils/formatCurrency";
 import { formatDateTime } from "@/lib/utils/date";
+
+const formatPdfCurrency = (amount: number): string =>
+  `INR ${amount.toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
+const sanitizeForPdf = (value: string): string =>
+  value
+    .normalize("NFKD")
+    .replace(/\u20B9/g, "INR ")
+    .replace(/[^\x09\x0A\x0D\x20-\x7E\xA0-\xFF]/g, "?");
 
 export async function GET(request: NextRequest) {
   try {
@@ -37,6 +48,14 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { createdAt: "asc" },
+      select: {
+        amount: true,
+        type: true,
+        category: true,
+        description: true,
+        rawInput: true,
+        createdAt: true,
+      },
     });
 
     const categoryBreakdownMap: Record<string, { category: string; totalExpense: number; totalIncome: number; txCount: number }> = {};
@@ -112,15 +131,15 @@ Keep it professional but concise.`;
         doc.moveDown(0.5);
 
         doc.fontSize(12).font("Helvetica");
-        doc.text(`Total Income:    +${formatCurrency(totals.income)}`);
-        doc.text(`Total Expenses:  -${formatCurrency(totals.expenses)}`);
-        doc.text(`Net Profit:      ${totals.netProfit >= 0 ? "+" : "-"}${formatCurrency(Math.abs(totals.netProfit))}`);
+        doc.text(`Total Income:    +${formatPdfCurrency(totals.income)}`);
+        doc.text(`Total Expenses:  -${formatPdfCurrency(totals.expenses)}`);
+        doc.text(`Net Profit:      ${totals.netProfit >= 0 ? "+" : "-"}${formatPdfCurrency(Math.abs(totals.netProfit))}`);
         doc.moveDown(2);
 
         doc.fontSize(14).font("Helvetica-Bold").text("AI Financial Narrative");
         doc.moveDown(0.5);
         
-        doc.fontSize(12).font("Helvetica").text(aiNarrative, {
+        doc.fontSize(12).font("Helvetica").text(sanitizeForPdf(aiNarrative), {
           align: "justify",
           lineGap: 4
         });
@@ -157,9 +176,9 @@ Keep it professional but concise.`;
           doc.font("Helvetica");
           for (const c of catBreakdown) {
             rowY = doc.y;
-            doc.text(c.category, catCols[0].x, rowY, { width: catCols[0].w });
-            doc.text(formatCurrency(c.totalIncome), catCols[1].x, rowY, { width: catCols[1].w });
-            doc.text(formatCurrency(c.totalExpense), catCols[2].x, rowY, { width: catCols[2].w });
+            doc.text(sanitizeForPdf(c.category), catCols[0].x, rowY, { width: catCols[0].w });
+            doc.text(formatPdfCurrency(c.totalIncome), catCols[1].x, rowY, { width: catCols[1].w });
+            doc.text(formatPdfCurrency(c.totalExpense), catCols[2].x, rowY, { width: catCols[2].w });
             doc.text(c.txCount.toString(), catCols[3].x, rowY, { width: catCols[3].w });
             doc.y = rowY + 16;
           }
@@ -206,10 +225,15 @@ Keep it professional but concise.`;
             const rowY = doc.y;
             const dateStr = formatDateTime(tx.createdAt).split(",")[0] || "-";
             doc.text(dateStr, txCols[0].x, rowY, { width: txCols[0].w });
-            doc.text(tx.category, txCols[1].x, rowY, { width: txCols[1].w });
+            doc.text(sanitizeForPdf(tx.category), txCols[1].x, rowY, { width: txCols[1].w });
             doc.text(tx.type, txCols[2].x, rowY, { width: txCols[2].w });
-            doc.text(formatCurrency(Number(tx.amount)), txCols[3].x, rowY, { width: txCols[3].w });
-            doc.text((tx.description || tx.rawInput || "-").substring(0, 30), txCols[4].x, rowY, { width: txCols[4].w });
+            doc.text(formatPdfCurrency(Number(tx.amount)), txCols[3].x, rowY, { width: txCols[3].w });
+            doc.text(
+              sanitizeForPdf((tx.description || tx.rawInput || "-").substring(0, 30)),
+              txCols[4].x,
+              rowY,
+              { width: txCols[4].w },
+            );
             doc.y = rowY + 16;
           }
         }
