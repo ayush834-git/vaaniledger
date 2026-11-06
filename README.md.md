@@ -6,10 +6,6 @@
 
 > *Vaani* (वाणी) means "voice" in Hindi.
 
-<!-- TODO: add a screenshot or GIF of the app here -->
-<!-- ![VaaniLedger screenshot](public/screenshot.png) -->
-
----
 
 ## Who Is It For?
 
